@@ -394,7 +394,7 @@ objects:
                   // If not grab generic deploymentconfig
                   sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                   sh "oc process -f openshift/meta-templates/deployment-config.yaml \
-                                 -p appName=${APP_NAME} \                                 
+                                 -p appName=${APP_NAME} \
                                  -p namespace=${TOOLS_NAMESPACE} \
                                  -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
 
