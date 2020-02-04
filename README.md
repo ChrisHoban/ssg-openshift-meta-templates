@@ -1,6 +1,6 @@
 # OpenShift Meta Template
 
-[[N|Solid](OpenShift-DevOps-Flow.png)]()
+(OpenShift-DevOps-Flow.png)
 OpenShift Meta Template is an effort to bootstrap in a full openshift build pipeline in the BCGov space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created. Really handy in MicroService development.
 
 Current Features
