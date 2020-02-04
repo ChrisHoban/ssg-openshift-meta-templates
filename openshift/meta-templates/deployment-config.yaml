@@ -13,6 +13,8 @@ parameters:
   - name: GIT_REPO
     required: true
     value: https://github.com/ChrisHoban/ssg-openshift-meta-templates.git
+  - name: namespace
+    required: true
 objects:
   - apiVersion: v1
     kind: DeploymentConfig
@@ -53,5 +55,6 @@ objects:
           from:
             kind: ImageStreamTag
             name: ${appName}:${TAG}
+            namespace: ${namespace}
         type: ImageChange
     status: {}

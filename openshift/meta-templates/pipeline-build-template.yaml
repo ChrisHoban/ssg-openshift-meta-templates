@@ -286,6 +286,7 @@ objects:
                     sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                     sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                    -p appName=${APP_NAME} \
+                                   -p namespace=${TOOLS_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
 
                     //Also process service and route
@@ -340,6 +341,7 @@ objects:
                     sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                     sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                    -p appName=${APP_NAME} \
+                                   -p namespace=${TOOLS_NAMESPACE} \
                                    -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
 
                     //Also process service and route
@@ -392,7 +394,8 @@ objects:
                   // If not grab generic deploymentconfig
                   sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                   sh "oc process -f openshift/meta-templates/deployment-config.yaml \
-                                 -p appName=${APP_NAME} \
+                                 -p appName=${APP_NAME} \                                 
+                                 -p namespace=${TOOLS_NAMESPACE} \
                                  -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
 
                   //Also process service and route
