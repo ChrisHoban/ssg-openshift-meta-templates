@@ -209,7 +209,7 @@ objects:
           value: "${namespacePrefix}-prod"
         jenkinsfile: |-
           try {
-            node('${jenkinsPod}') {
+            node("${JENKINS_POD}") {
                 // Checkout SCM
                 stage("Checkout") {
                   dir("${APP_NAME}") {
@@ -272,7 +272,10 @@ objects:
                  dir("${APP_NAME}") {
                   sh "echo Creating DeploymentConfig in Dev"
                   // Does the repository contain templates?
-                  if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+
+                  artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
+                  artifactExists = fileExists artifactpath
+                  if (artifactExists){
                     sh "echo found ${APP_NAME}-dc.yaml, processing..."
                     // If so process them
                     sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
@@ -327,7 +330,9 @@ objects:
                   sh "echo Creating DeploymentConfig in TEST"
 
                   // Does the repository contain templates?
-                  if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+                  artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
+                  artifactExists = fileExists artifactpath
+                  if (artifactExists){
                     sh "echo found ${APP_NAME}-dc.yaml, processing..."
                     // If so process them
                     sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
@@ -381,7 +386,9 @@ objects:
                   sh "echo Creating DeploymentConfig in Prod"
 
                 // Does the repository contain templates?
-                if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+                artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
+                artifactExists = fileExists artifactpath
+                if (artifactExists){
                   sh "echo found ${APP_NAME}-dc.yaml, processing..."
                   // If so process them
                   sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
