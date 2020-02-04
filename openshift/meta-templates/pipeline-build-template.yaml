@@ -214,6 +214,8 @@ objects:
                 stage("Checkout") {
                   dir("${APP_NAME}") {
                     git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+                    // Now pull down meta templates
+                    git url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates.git"
                   }
                 }
 
@@ -278,15 +280,21 @@ objects:
                                    -p namespace=${DEV_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
                   }else{
+                    // If not grab generic deploymentconfig
                     sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                     sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                    -p appName=${APP_NAME} \
                                    -p namespace=${DEV_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
 
+                    //Also process service and route
+                    sh "oc process -f openshift/meta-templates/service-route.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${DEV_NAMESPACE} \
+                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
+
                   }
 
-                  // If not grab generic deploymentconfig
 
                   sh "echo Wait for service to be up"
                   timeout(time: 180, unit: 'SECONDS') {
@@ -318,10 +326,29 @@ objects:
                  dir("${APP_NAME}") {
                   sh "echo Creating DeploymentConfig in TEST"
 
-                  sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
-                                 -p appName=${APP_NAME} \
-                                 -p namespace=${TEST_NAMESPACE} \
-                                 -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
+                  // Does the repository contain templates?
+                  if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+                    sh "echo found ${APP_NAME}-dc.yaml, processing..."
+                    // If so process them
+                    sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${TEST_NAMESPACE} \
+                                   -p TAG=dev | oc apply -f - -n ${TEST_NAMESPACE}"
+                  }else{
+                    // If not grab generic deploymentconfig
+                    sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
+                    sh "oc process -f openshift/meta-templates/deployment-config.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${TEST_NAMESPACE} \
+                                   -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
+
+                    //Also process service and route
+                    sh "oc process -f openshift/meta-templates/service-route.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${TEST_NAMESPACE} \
+                                   -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
+
+                  }
 
                   sh "echo Wait for service to be up"
                   timeout(time: 180, unit: 'SECONDS') {
@@ -353,11 +380,29 @@ objects:
                  dir("${APP_NAME}") {
                   sh "echo Creating DeploymentConfig in Prod"
 
+                // Does the repository contain templates?
+                if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+                  sh "echo found ${APP_NAME}-dc.yaml, processing..."
+                  // If so process them
                   sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
                                  -p appName=${APP_NAME} \
                                  -p namespace=${PROD_NAMESPACE} \
                                  -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
+                }else{
+                  // If not grab generic deploymentconfig
+                  sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
+                  sh "oc process -f openshift/meta-templates/deployment-config.yaml \
+                                 -p appName=${APP_NAME} \
+                                 -p namespace=${PROD_NAMESPACE} \
+                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
 
+                  //Also process service and route
+                  sh "oc process -f openshift/meta-templates/service-route.yaml \
+                                 -p appName=${APP_NAME} \
+                                 -p namespace=${PROD_NAMESPACE} \
+                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
+
+                }
                   sh "echo Wait for service to be up"
                   timeout(time: 180, unit: 'SECONDS') {
                    openshift.withCluster() {
