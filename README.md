@@ -19,9 +19,19 @@ Current Features
         - Network Security Policy Configuration
         - image puller role for dev/test/prod namespace default user for tools namespace imagestream deployments
 
-** Note **
+--How to Use--
+1. Click import YAML in openshift tools namespace
+2. paste contents of /openshift/meta-templates/pipeline-build-template.yaml
+3. Fill out requested parameters 
 
-Current tool requires the following is already done before it works (Future versions will work on a blank slate): Persistent Jenkins Template installed, Network Security Policies loosened (Template to do so contained within), default user for dev/test/prod has image:puller role in tools namespace
-Pipeline build comes with jenkinsfile inline, for rapid prototyping before eventually placing pipeline in your repository.
+
+** Notew **
+
+- Current tool requires the following is already done before it works (Future versions will work on a blank slate): 
+   1. Persistent Jenkins Template installed
+   2. Network Security Policies loosened (Template to do so contained within)
+   3. default user for dev/test/prod has image:puller role in tools namespace
+ 
+- Pipeline build comes with jenkinsfile inline, for rapid prototyping before eventually placing pipeline in your repository.
 
 * Upcoming features and tracked issues : https://github.com/ChrisHoban/ssg-openshift-meta-templates/issues  
