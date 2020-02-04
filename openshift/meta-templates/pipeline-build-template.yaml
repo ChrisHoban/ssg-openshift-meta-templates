@@ -1,0 +1,422 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: master-build-pipeline
+message: |-
+  A Jenkins server must be instantiated in this project to manage
+  the Pipeline BuildConfig created by this template.  You will be able to log in to
+  it using your OpenShift user credentials.
+metadata:
+  annotations:
+    openshift.io/display-name: Master Pipeline Template
+    description: |-
+      This is a template for OpenShift Jenkins Pipelines.
+    iconClass: icon-jenkins
+    tags: instant-app,jenkins
+  name: pipeline-build-template
+parameters:
+- description: The name assigned to all of the frontend objects defined in this template.
+  displayName: Name
+  name: appName
+  required: true
+- description: The exposed hostname that will route to the service, if left
+    blank a value will be defaulted.
+  displayName: Application Domain
+  name: appDomain
+  value:
+- description: The URL of the repository with your application source code.
+  displayName: Git Repository URL
+  name: gitUrl
+  required: true
+  value:
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: gitRef
+  value: master
+  required: true
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository.
+  displayName: Context Directory
+  name: gitContextDir
+  value:
+- description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret (Generated if empty)
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: gitSecret
+- description: The OpenShift Namespace prefix where the ImageStreams reside.
+  displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
+  name: namespacePrefix
+  required: true
+  value:
+- description: The source image to compile or load this code into, IE dotnet:2.1, java:8
+  displayName: Source Image:Tag
+  required: true
+  name: sourceImage
+  value: dotnet:2.1
+- description: Lifecycle Webhook (IE Slack, RocketChat etc)
+  displayName: Lifecycle Webhook
+  name: lifecycleHook
+  value:
+# BuildConfig (High defaults, uses short running resource pool)
+- description: Build Config CPU Limit for builder pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Limit
+  required: true
+  name: bcCpuLimit
+  value: '4'
+- description: Build Config Memory Limit for builder pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: bcMemoryLimit
+  value: 4Gi
+- description: Build Config CPU Requested for builder pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Request
+  required: true
+  name: bcCpuRequest
+  value: '1'
+- description: Build Config Memory Requested for builder pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: bcMemoryRequest
+  value: 1Gi
+- description: Time Limit for the Builder in Seconds (Important to keep resource allocation/usage within the limited run pool)
+  displayName: Completion Deadline Seconds (1800 = 30 mins)
+  name: completionDeadlineSeconds
+  value: '1800'
+- description: The ID (name) of a running Node to use as a builder (Advanced)
+  displayName: Node Selector (ID)
+  name: nodeSelector
+  value: 'null'
+
+#deploymentconfig
+- description: Build Config CPU Limit for each deployed pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Limit
+  required: true
+  name: dcCpuLimit
+  value: 250m
+- description: Build Config Memory Limit for each deployed pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: dcMemoryLimit
+  value: 256Mi
+- description: Build Config CPU Requested for each deployed pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Request
+  required: true
+  name: dcCpuRequest
+  value: 125m
+- description: Build Config Memory Requested for each deployed pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: dcMemRequest
+  value: 128Mi
+
+#Pipeline Specific
+- description: Jenkins Pod Image Name
+  displayName: Jenkins Pod (IE nodejs, maven)
+  required: true
+  name: jenkinsPod
+  value: nodejs
+
+#sonarqube
+- description: SonarQube Stage Enabled?
+  displayName: Sonarqube Enabled
+  required: true
+  name: sonarEnabled
+  value: "false"
+- description: Sonarqube Instance URL
+  displayName: Sonarqube URL
+  required: true
+  name: sonarUrl
+  value: 'http://sonarqube:9000'
+- description: Sonarqube Analysis Command (For Jenkins Stage, will pull down code and run the command given (IE 'maven sonar:sonar'))
+  displayName: Sonarqube Command
+  required: true
+  name: sonarCommand
+  value:
+- description: Sonarqube Raw Token
+  displayName: Sonarqube Token
+  name: sonartoken
+  value: ''
+- description: The ID (name) of the SonarQube Token as stored in Jenkins Credential Store
+  displayName: Sonarqube Jenkins Credential ID
+  name: sonarJenkinsCredentialId
+  value:
+
+
+
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      application: ${appName}
+    name: ${appName}
+    namespace: "${namespacePrefix}-tools"
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    labels:
+      application: ${appName}
+    name: "${appName}-pipeline"
+    namespace: "${namespacePrefix}-tools"
+  spec:
+    source:
+      type: Git
+      git:
+        uri: ${gitUrl}
+        ref: ${gitRef}
+      contextDir: ${gitContextDir}
+    triggers:
+    - type: "GitHub"
+      github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+    - type: "ConfigChange"
+    strategy:
+      jenkinsPipelineStrategy:
+        env:
+        - name: APP_NAME
+          value: ${appName}
+        - name: LIFECYCLE_WEBHOOK
+          value: ${lifecycleHook}
+        - name: GIT_SOURCE_URL
+          value: ${gitUrl}
+        - name: GIT_SOURCE_REF
+          value: ${gitRef}
+        - name: GIT_CREDENTIALS_ID
+          value: ${gitSecret}
+        - name: GIT_CONTEXT_DIR
+          value: ${gitContextDir}
+        - name: JENKINS_POD
+          value: ${jenkinsPod}
+        - name: SONAR_TOKEN
+          value: ${sonartoken}
+        - name: SONAR_CREDENTIAL_ID
+          value: ${sonarJenkinsCredentialId}
+        - name: SONAR_URL
+          value: ${sonarUrl}
+        - name: SONAR_COMMAND
+          value: ${sonarCommand}
+        - name: SONAR_ENABLED
+          value: ${sonarEnabled}
+        - name: TOOLS_NAMESPACE
+          value: "${namespacePrefix}-tools"
+        - name: DEV_NAMESPACE
+          value: "${namespacePrefix}-dev"
+        - name: TEST_NAMESPACE
+          value: "${namespacePrefix}-test"
+        - name: PROD_NAMESPACE
+          value: "${namespacePrefix}-prod"
+        jenkinsfile: |-
+          try {
+            node('${jenkinsPod}') {
+                // Checkout SCM
+                stage("Checkout") {
+                  dir("${APP_NAME}") {
+                    git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+                  }
+                }
+
+                // Deploy Build Config, Build Image
+                stage("Build ${APP_NAME}") {
+                  dir("${APP_NAME}") {
+                    timeout(time: 10, unit: 'MINUTES') {
+                     openshift.withCluster() {
+                      openshift.withProject() {
+                       // @todo build config as code
+                       //def bcSelector = openshift.selector("bc", "${APP_NAME}")
+                       //bcSelector.object()
+                       //builds = bcSelector.related("builds")
+                       //builds.watch {
+                       //if (it.count() == 0) {
+                       //  return false
+                       // }
+                       //  return true
+                       // }
+                       //builds.untilEach {
+                       // return it.object().status.phase == "Complete"
+                       //}
+                       def bld = openshift.startBuild(env.APP_NAME)
+                       bld.untilEach {
+                         return (it.object().status.phase == "Complete")
+                       }
+                       bld.logs('-f')
+                      }
+                     }
+                    }
+
+                  }
+                }
+
+
+                if ("${SONAR_ENABLED}"!="false") {
+                  stage("Sonar Scan") {
+                    timeout(time: 8, unit: 'MINUTES') {
+                      // @todo one size fits all sonarqube
+                      sh "ls -a"
+                      sh "${SONAR_COMMAND}" // -f./${CONTEXT_DIR}/pom.xml -Dsonar.host.url=${SONAR_URL} -Dsonar.login=${SONAR_TOKEN} -Dsonar.binaries=./${CONTEXT_DIR}/target/jrcc-loader.jar -Dsonar.junit.reportPaths=./${CONTEXT_DIR}/target/surefire-reports"
+                    }
+                  }
+                }
+
+                stage('Promote to DEV') {
+                 openshift.withCluster() {
+                  sh "echo Tagging image for DEV"
+                  openshift.tag("${APP_NAME}:latest", "${APP_NAME}:dev")
+                 }
+                }
+
+                stage("Deploy ${APP_NAME}") {
+                 dir("${APP_NAME}") {
+                  sh "echo Creating DeploymentConfig in Dev"
+                  // Does the repository contain templates?
+                  if (fileExists "/openshift/templates/${APP_NAME}-dc.yaml"){
+                    sh "echo found ${APP_NAME}-dc.yaml, processing..."
+                    // If so process them
+                    sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${DEV_NAMESPACE} \
+                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
+                  }else{
+                    sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
+                    sh "oc process -f openshift/meta-templates/deployment-config.yaml \
+                                   -p appName=${APP_NAME} \
+                                   -p namespace=${DEV_NAMESPACE} \
+                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
+
+                  }
+
+                  // If not grab generic deploymentconfig
+
+                  sh "echo Wait for service to be up"
+                  timeout(time: 180, unit: 'SECONDS') {
+                   openshift.withCluster() {
+                    openshift.withProject("${DEV_NAMESPACE}") {
+                     def dc = openshift.selector('dc', "${APP_NAME}")
+                     // this will wait until the desired replicas are available
+                     dc.rollout().status()
+                    }
+                   }
+                  }
+                 }
+                }
+
+                stage('Promotion gate') {
+                    script {
+                        input message: 'Promote application to Test?'
+                    }
+                }
+
+                stage('Promote to TEST') {
+                 openshift.withCluster() {
+                  sh "echo Tagging image for TEST"
+                  openshift.tag("${APP_NAME}:dev", "${APP_NAME}:test")
+                 }
+                }
+
+                stage("Deploy ${APP_NAME}") {
+                 dir("${APP_NAME}") {
+                  sh "echo Creating DeploymentConfig in TEST"
+
+                  sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
+                                 -p appName=${APP_NAME} \
+                                 -p namespace=${TEST_NAMESPACE} \
+                                 -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
+
+                  sh "echo Wait for service to be up"
+                  timeout(time: 180, unit: 'SECONDS') {
+                   openshift.withCluster() {
+                    openshift.withProject("${TEST_NAMESPACE}") {
+                     def dc = openshift.selector('dc', "${APP_NAME}")
+                     // this will wait until the desired replicas are available
+                     dc.rollout().status()
+                    }
+                   }
+                  }
+                 }
+                }
+
+                stage('Promotion gate') {
+                    script {
+                        input message: 'Promote application to Prod?'
+                    }
+                }
+
+                stage('Promote to PROD') {
+                 openshift.withCluster() {
+                  sh "echo Tagging image for prod"
+                  openshift.tag("${APP_NAME}:test", "${APP_NAME}:prod")
+                 }
+                }
+
+                stage("Deploy ${APP_NAME}") {
+                 dir("${APP_NAME}") {
+                  sh "echo Creating DeploymentConfig in Prod"
+
+                  sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
+                                 -p appName=${APP_NAME} \
+                                 -p namespace=${PROD_NAMESPACE} \
+                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
+
+                  sh "echo Wait for service to be up"
+                  timeout(time: 180, unit: 'SECONDS') {
+                   openshift.withCluster() {
+                    openshift.withProject("${PROD_NAMESPACE}") {
+                     def dc = openshift.selector('dc', "${APP_NAME}")
+                     // this will wait until the desired replicas are available
+                     dc.rollout().status()
+                    }
+                   }
+                  }
+                 }
+                }
+             }
+          } catch (err) {
+             echo "in catch block"
+
+             currentBuild.result = 'FAILURE'
+             env.ERR = "${err}"
+             node {
+                sh "curl -XPOST '${LIFECYCLE_WEBHOOK}' -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\",\"icon_emoji\":\":lion_face:\",\"text\": \"${APP_NAME} Pipeline Failure - ${ERR}\"}'"
+             }
+             echo "Caught: ${err}"
+             throw err
+          }
+
+      type: JenkinsPipeline
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: Defines how to build the application
+    name: ${appName}
+    labels:
+      template: master-build-pipeline
+      app: ${appName}
+  spec:
+    nodeSelector: null
+    completionDeadlineSeconds: ${completionDeadlineSeconds}
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${appName}:latest
+    resources:
+      limits:
+        cpu: ${bcCpuLimit}
+        memory: ${bcMemoryLimit}
+      requests:
+        cpu: ${bcCpuRequest}
+        memory: ${bcMemoryRequest}
+    source:
+      contextDir: ${gitContextDir}
+      git:
+        ref: ${gitRef}
+        uri: ${gitUrl}
+      type: Git
+    strategy:
+      sourceStrategy:
+       from:
+         kind: ImageStreamTag
+         name: ${sourceImage}
+         namespace: openshift
+      type: Source

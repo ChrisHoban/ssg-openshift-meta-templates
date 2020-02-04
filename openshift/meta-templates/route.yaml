@@ -1,0 +1,31 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: meta-route-template
+parameters:
+- description: The name assigned to all of the frontend objects defined in this template.
+  displayName: Name
+  name: appName
+  required: true
+- description: This namespace (used in hostname)
+  displayName: Namespace
+  name: namespace
+  required: true
+- description: The name of the port to be referenced by a route
+  displayName: Name
+  name: portName
+  required: true
+  value: web
+objects:
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${appName}
+    labels:
+      template: meta-route
+      app: ${appName}
+  spec:
+    host: ${appName}-${namespace}
+    to:
+      kind: Service
+      name: ${portName}

@@ -1,0 +1,57 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: meta-deployment-config-template
+parameters:
+  - name: appName
+    displayName: Name
+    description: A prefix appended to all objects
+    required: true
+  - name: TAG
+    required: true
+    value: dev
+  - name: GIT_REPO
+    required: true
+    value: https://github.com/ChrisHoban/ssg-openshift-meta-templates.git
+objects:
+  - apiVersion: v1
+    kind: DeploymentConfig
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert --provider=openshift --build=deploy-config --build-repo=${GIT_REPO}
+        kompose.version: 1.18.0 (06a2e56)
+      creationTimestamp: null
+      labels:
+        io.kompose.service: ${appName}
+      name: ${appName}
+    spec:
+      replicas: 2
+      selector:
+        io.kompose.service: ${appName}
+      strategy:
+        resources: {}
+      template:
+        metadata:
+          creationTimestamp:
+          labels:
+            io.kompose.service: ${appName}
+        spec:
+          containers:
+          - image: ''
+            name: ${appName}
+            ports:
+            - containerPort: 8081
+            resources: {}
+          restartPolicy: Always
+      test: false
+      triggers:
+      - type: ConfigChange
+      - imageChangeParams:
+          automatic: true
+          containerNames:
+          - ${appName}
+          from:
+            kind: ImageStreamTag
+            name: ${appName}:${TAG}
+        type: ImageChange
+    status: {}
