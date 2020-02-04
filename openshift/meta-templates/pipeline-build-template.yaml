@@ -274,27 +274,24 @@ objects:
                   // Does the repository contain templates?
 
                   artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                  artifactExists = fileExists artifactpath
+                  artifactExists = fileExists artifactPath;
                   if (artifactExists){
                     sh "echo found ${APP_NAME}-dc.yaml, processing..."
                     // If so process them
                     sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${DEV_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
                   }else{
                     // If not grab generic deploymentconfig
                     sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                     sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${DEV_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
 
                     //Also process service and route
                     sh "oc process -f openshift/meta-templates/service-route.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${DEV_NAMESPACE} \
-                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
+                                   -p namespace=${DEV_NAMESPACE} | oc apply -f - -n ${DEV_NAMESPACE}"
 
                   }
 
@@ -331,27 +328,24 @@ objects:
 
                   // Does the repository contain templates?
                   artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                  artifactExists = fileExists artifactpath
+                  artifactExists = fileExists artifactPath;
                   if (artifactExists){
                     sh "echo found ${APP_NAME}-dc.yaml, processing..."
                     // If so process them
                     sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${TEST_NAMESPACE} \
                                    -p TAG=dev | oc apply -f - -n ${TEST_NAMESPACE}"
                   }else{
                     // If not grab generic deploymentconfig
                     sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                     sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${TEST_NAMESPACE} \
                                    -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
 
                     //Also process service and route
                     sh "oc process -f openshift/meta-templates/service-route.yaml \
                                    -p appName=${APP_NAME} \
-                                   -p namespace=${TEST_NAMESPACE} \
-                                   -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
+                                   -p namespace=${TEST_NAMESPACE} | oc apply -f - -n ${TEST_NAMESPACE}"
 
                   }
 
@@ -387,27 +381,24 @@ objects:
 
                 // Does the repository contain templates?
                 artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                artifactExists = fileExists artifactpath
+                artifactExists = fileExists artifactPath;
                 if (artifactExists){
                   sh "echo found ${APP_NAME}-dc.yaml, processing..."
                   // If so process them
                   sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
                                  -p appName=${APP_NAME} \
-                                 -p namespace=${PROD_NAMESPACE} \
                                  -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
                 }else{
                   // If not grab generic deploymentconfig
                   sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
                   sh "oc process -f openshift/meta-templates/deployment-config.yaml \
                                  -p appName=${APP_NAME} \
-                                 -p namespace=${PROD_NAMESPACE} \
                                  -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
 
                   //Also process service and route
                   sh "oc process -f openshift/meta-templates/service-route.yaml \
                                  -p appName=${APP_NAME} \
-                                 -p namespace=${PROD_NAMESPACE} \
-                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
+                                 -p namespace=${PROD_NAMESPACE} | oc apply -f - -n ${PROD_NAMESPACE}"
 
                 }
                   sh "echo Wait for service to be up"
