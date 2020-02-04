@@ -4,9 +4,10 @@
 OpenShift Meta Template is an effort to bootstrap in a full openshift build pipeline in the BCGov space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created. Really handy in MicroService development.
 
 Current Features
-  - Build from standard nodeJS/.NET/Java source code repository
+  - Build S2I from standard nodeJS/.NET/Java source code repository
   - Setup for Infrastructure As Code, but will create BuildConfig/DeploymentConfig/Route/Service objects if they don't yet exist in your repo
-  - Configure Build and Deployment Resources (Time Limited Resource Pool)
+  - Configure Build and Deployment pod Resources (Time Limited Resource Pool)
+  - LifeCycle Webhook used to deliver caught Pipeline Exceptions
 
 # Upcoming Features!
 
