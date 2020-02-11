@@ -42,7 +42,7 @@ objects:
         port: ${{sourcePort}}
         targetPort: ${{targetPort}}
     selector:
-      deploymentConfig: ${appName}
+      deploymentconfig: ${appName}
     sessionAffinity: None
     type: ClusterIP
   status:
