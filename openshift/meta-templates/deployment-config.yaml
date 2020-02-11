@@ -15,16 +15,16 @@ parameters:
     value: https://github.com/ChrisHoban/ssg-openshift-meta-templates.git
   - name: namespace
     required: true
+  - name: container_port
+    value: 8080
 objects:
   - apiVersion: v1
     kind: DeploymentConfig
     metadata:
       annotations:
-        kompose.cmd: kompose convert --provider=openshift --build=deploy-config --build-repo=${GIT_REPO}
-        kompose.version: 1.18.0 (06a2e56)
       creationTimestamp: null
       labels:
-        io.kompose.service: ${appName}
+        app: ${appName}
       name: ${appName}
     spec:
       replicas: 2
@@ -42,7 +42,7 @@ objects:
           - image: ''
             name: ${appName}
             ports:
-            - containerPort: 8081
+            - containerPort: ${container_port}
             resources: {}
           restartPolicy: Always
       test: false
