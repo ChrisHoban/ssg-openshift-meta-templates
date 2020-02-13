@@ -16,7 +16,7 @@ parameters:
   - name: namespace
     required: true
   - name: container_port
-    value: 8080
+    value: '8080'
 objects:
   - apiVersion: v1
     kind: DeploymentConfig
