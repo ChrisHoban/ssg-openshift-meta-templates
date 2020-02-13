@@ -42,7 +42,7 @@ objects:
           - image: ''
             name: ${appName}
             ports:
-            - containerPort: ${container_port}
+            - containerPort: $${container_port}
             resources: {}
           restartPolicy: Always
       test: false
