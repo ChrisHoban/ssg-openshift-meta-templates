@@ -55,6 +55,11 @@ parameters:
   required: true
   name: sourceImage
   value: dotnet:2.1
+- name: sourceImageNamespace
+  displayName: Source Image Namespace
+  description: The source image namespace defaulted to openshift
+  required: true
+  value: openshift
 - description: Lifecycle Webhook (IE Slack, RocketChat etc)
   displayName: Lifecycle Webhook
   name: lifecycleHook
@@ -464,5 +469,5 @@ objects:
        from:
          kind: ImageStreamTag
          name: ${sourceImage}
-         namespace: openshift
+         namespace: ${sourceImageNamespace}
       type: Source
