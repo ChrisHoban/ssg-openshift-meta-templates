@@ -34,6 +34,11 @@ parameters:
   description: The name of the secret with the ssh keys to authenticate
   required: true
   value:
+- name: gitCheckoutRequired
+  displayName: Git Checkout
+  description: If code needs to be checkout, defaulted to true, if you are using a jenkins slave set to false
+  required: true
+  value: true
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference
@@ -197,6 +202,8 @@ objects:
           value: ${gitSecret}
         - name: GIT_CONTEXT_DIR
           value: ${gitContextDir}
+        - name: CHECKOUT_SRC
+          value: ${gitCheckoutRequired}
         - name: JENKINS_POD
           value: ${jenkinsPod}
         - name: SONAR_TOKEN
@@ -220,12 +227,20 @@ objects:
         jenkinsfile: |-
           try {
             node("${JENKINS_POD}") {
-                // Checkout SCM
-                stage("Checkout") {
+                
+                // Checkout Openshift metadata template
+                stage("Checkout Templates") {
                   dir("${APP_NAME}") {
-                    git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
-                    // Now pull down meta templates
                     git url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates.git"
+                  }
+                }
+
+                // Checkout source code
+                if ("${CHECKOUT_SRC}"=="true") {
+                  stage("Checkout") {
+                    dir("${APP_NAME}") {
+                      git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+                    }
                   }
                 }
 
