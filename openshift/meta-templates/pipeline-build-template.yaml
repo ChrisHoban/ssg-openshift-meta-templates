@@ -29,6 +29,11 @@ parameters:
   name: gitUrl
   required: true
   value:
+- name: gitPrivateSshKey
+  displayName: Git SSH Key
+  description: The name of the secret with the ssh keys to authenticate
+  required: true
+  value:
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
   displayName: Git Reference
@@ -464,6 +469,8 @@ objects:
         ref: ${gitRef}
         uri: ${gitUrl}
       type: Git
+      sourceSecret:
+        name: ${gitPrivateSshKey}
     strategy:
       sourceStrategy:
        from:
