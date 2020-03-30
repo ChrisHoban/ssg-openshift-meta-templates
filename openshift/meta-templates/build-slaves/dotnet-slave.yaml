@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: dotnet-core
+message: |-
+  A Jenkins server must be instantiated in this project to manage
+  the Pipeline BuildConfig created by this template. You will be able to log in to
+  it using your OpenShift user credentials.
+metadata:
+  annotations:
+    openshift.io/display-name: sonarqube dotnet template
+    description: |-
+      This is a template for Sonarqube dotnet.
+    iconClass: icon-jenkins
+    tags: instant-app,jenkins
+  name: dotnet-core-template
+parameters:
+  - description: The OpenShift Namespace prefix where the ImageStreams reside.
+    displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
+    name: namespacePrefix
+    required: true
+    value:
+  - description: Dotnet version
+    displayName: Dotnet version
+    name: dotnetVersion
+    required: true
+    value: "3.1"
+objects:
+  - apiVersion: build.openshift.io/v1
+    kind: BuildConfig
+    metadata:
+      labels:
+        app: jenkins-slave-dotnet
+      name: jenkins-slave-dotnet
+    spec:
+      failedBuildsHistoryLimit: 5
+      nodeSelector: null
+      output:
+        to:
+          kind: ImageStreamTag
+          name: "jenkins-slave-dotnet:latest"
+      postCommit: {}
+      resources: {}
+      runPolicy: Serial
+      source:
+        contextDir: ${dotnetVersion}
+        git:
+          ref: master
+          uri: "https://github.com/redhat-developer/dotnet-jenkins-slave.git"
+        type: Git
+      strategy:
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+          # env:
+          #   - name: GIT_SSL_NO_VERIFY
+          #     value: "true"
+          #   - name: DOT_NET_VERSION
+          #     value: ${dotnetVersion}
+          from:
+            kind: DockerImage
+            name: "docker.io/openshift/jenkins-slave-base-centos7:latest"
+        type: Docker
+      successfulBuildsHistoryLimit: 5
+      triggers: []
+  - apiVersion: image.openshift.io/v1
+    kind: ImageStream
+    metadata:
+      labels:
+        app: jenkins-slave-dotnet
+      name: jenkins-slave-dotnet
+    spec:
+      lookupPolicy:
+        local: false
+  - apiVersion: v1
+    data:
+      sonar-dotnet: |-
+        <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+          <inheritFrom></inheritFrom>
+          <name>sonar-dotnet</name>
+          <instanceCap>2147483647</instanceCap>
+          <idleMinutes>0</idleMinutes>
+          <label>sonar-dotnet</label>
+          <serviceAccount>jenkins</serviceAccount>
+          <nodeSelector></nodeSelector>
+          <volumes/>
+          <containers>
+            <org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+              <name>jnlp</name>
+              <image>docker-registry.default.svc:5000/${namespacePrefix}-tools/jenkins-slave-dotnet</image>
+              <privileged>false</privileged>
+              <alwaysPullImage>false</alwaysPullImage>
+              <workingDir>/tmp</workingDir>
+              <command></command>
+              <args>${computer.jnlpmac} ${computer.name}</args>
+              <ttyEnabled>false</ttyEnabled>
+              <resourceRequestCpu>1</resourceRequestCpu>
+              <resourceRequestMemory>1Gi</resourceRequestMemory>
+              <resourceLimitCpu>2</resourceLimitCpu>
+              <resourceLimitMemory>4Gi</resourceLimitMemory>
+              <envVars/>
+            </org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+          </containers>
+          <envVars/>
+          <annotations/>
+          <imagePullSecrets/>
+          <nodeProperties/>
+        </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+    kind: ConfigMap
+    metadata:
+      labels:
+        role: jenkins-slave
+      name: jenkins-agent-dotnet
