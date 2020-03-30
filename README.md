@@ -13,9 +13,20 @@ Features includes:
 
 ## Getting Started
 
-1. Click import YAML in openshift tools namespace
-2. paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/master/openshift/meta-templates/pipeline-build-template.yaml) of /openshift/meta-templates/pipeline-build-template.yaml
-3. Fill out requested parameters 
+Deploy a jenkins server using `BC Gov Pathfinder Jenkins (Persistent)` image from the service catalog.
+
+Click import YAML in openshift tools namespace
+
+paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/master/openshift/meta-templates/pipeline-build-template.yaml) of /openshift/meta-templates/pipeline-build-template.yaml
+
+Fill out requested parameters 
+
+### Deploy a dotnet core web application
+
+> This instructions are for dotnet core 3.1 only
+
+
+  
 
 ## Upcoming Features!
 
