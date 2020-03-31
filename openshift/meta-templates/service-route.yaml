@@ -55,7 +55,7 @@ objects:
       template: master-build-pipeline
       app: ${appName}
   spec:
-    host: ${appName}-${namespace}.pathfinder.bcgov
+    host: ${appName}-${namespace}.${suffix}
     to:
       kind: Service
       name: ${appName}
