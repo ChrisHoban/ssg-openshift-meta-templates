@@ -9,13 +9,10 @@ try {
 			}
 		}
 
-		// Checkout source code
-		if ("${CHECKOUT_SRC}"=="true") {
-			stage("Checkout") {
-				dir("${APP_NAME}") {
-					git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
-					env.GIT_COMMIT = getCommit()
-				}
+		stage("Checkout Source Code") {
+			dir("${APP_NAME}") {
+				git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+				env.GIT_COMMIT = getCommit()
 			}
 		}
 		
