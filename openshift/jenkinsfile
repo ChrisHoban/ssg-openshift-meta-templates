@@ -5,8 +5,8 @@ try {
 		// Checkout Openshift metadata template
 		stage("Checkout Templates") {
 			dir("${APP_NAME}") {
-				git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
-				env.GIT_COMMIT = getCommit()
+				//git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+				//env.GIT_COMMIT = getCommit()
 				git url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates.git"
 			}
 		}
@@ -73,7 +73,7 @@ try {
 		stage('Promote to TEST') {
 			openshift.withCluster() {
 				sh "echo Tagging image for TEST"
-				openshift.tag("${APP_NAME}:${GIT_COMMIT}", "${APP_NAME}:test")
+				openshift.tag("${APP_NAME}:latest", "${APP_NAME}:test")
 			}
 		}
 
@@ -90,7 +90,7 @@ try {
 		stage('Promote to PROD') {
 			openshift.withCluster() {
 				sh "echo Tagging image for prod"
-				openshift.tag("${APP_NAME}:${GIT_COMMIT}", "${APP_NAME}:prod")
+				openshift.tag("${APP_NAME}:latest", "${APP_NAME}:prod")
 			}
 		}
 
@@ -172,3 +172,4 @@ def createServiceRoute(String appName, String targetNamespace, String suffix) {
 		-p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
 
 }
+
