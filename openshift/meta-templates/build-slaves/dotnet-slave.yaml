@@ -73,13 +73,13 @@ objects:
         local: false
   - apiVersion: v1
     data:
-      sonar-dotnet: |-
+      dotnet: |-
         <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
           <inheritFrom></inheritFrom>
-          <name>sonar-dotnet</name>
+          <name>dotnet</name>
           <instanceCap>2147483647</instanceCap>
           <idleMinutes>0</idleMinutes>
-          <label>sonar-dotnet</label>
+          <label>dotnet</label>
           <serviceAccount>jenkins</serviceAccount>
           <nodeSelector></nodeSelector>
           <volumes/>
