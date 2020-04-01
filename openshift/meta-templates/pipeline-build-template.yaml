@@ -231,7 +231,6 @@ objects:
 
             node("${JENKINS_POD}") {
 
-            
               // Checkout Openshift metadata template
               stage("Checkout Templates") {
                 dir("${APP_NAME}") {
@@ -244,10 +243,11 @@ objects:
                 stage("Checkout") {
                   dir("${APP_NAME}") {
                     git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+                    env.GIT_COMMIT = getCommit()
                   }
                 }
               }
-
+              
               stage("Get Build Config") {
                 dir("${APP_NAME}") {
 
@@ -293,12 +293,12 @@ objects:
               stage('Promote to DEV') {
                 openshift.withCluster() {
                   sh "echo Tagging image for DEV"
-                  openshift.tag("${APP_NAME}:latest", "${APP_NAME}:dev")
+                  openshift.tag("${APP_NAME}:latest", "dev")
                 }
               }
 
               stage("Deploy ${APP_NAME}") {
-                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}")
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
               }
 
               stage('Promotion gate') {
@@ -310,12 +310,12 @@ objects:
               stage('Promote to TEST') {
                 openshift.withCluster() {
                   sh "echo Tagging image for TEST"
-                  openshift.tag("${APP_NAME}:dev", "${APP_NAME}:test")
+                  openshift.tag("${APP_NAME}:${GIT_COMMIT}", "${APP_NAME}:test")
                 }
               }
 
               stage("Deploy ${APP_NAME}") {
-                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}")
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
               }
 
               stage('Promotion gate') {
@@ -327,12 +327,12 @@ objects:
               stage('Promote to PROD') {
                 openshift.withCluster() {
                   sh "echo Tagging image for prod"
-                  openshift.tag("${APP_NAME}:test", "${APP_NAME}:prod")
+                  openshift.tag("${APP_NAME}:${GIT_COMMIT}", "${APP_NAME}:prod")
                 }
               }
 
               stage("Deploy ${APP_NAME}") {
-                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}")
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
               }
             }
 
@@ -348,8 +348,12 @@ objects:
             throw err
           }
 
+          String getCommit() {
+              return sh(script: 'git rev-parse HEAD', returnStdout: true)?.trim()
+          }
+
           // Deploy application to environment
-          def deploy(String buildConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType) {
+          def deploy(String buildConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version) {
             dir("${appName}") {
               
               sh "echo Creating DeploymentConfig in ${targetNamespace}"
@@ -358,7 +362,7 @@ objects:
               sh "oc process -f ${buildConfigPath} \
                 -p appName=${appName} \
                 -p namespace=${sourceNamespace} \
-                -p TAG=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
+                -p TAG=${version} | oc apply -f - -n ${targetNamespace}"
 
               createRoute("${appName}", "${targetNamespace}", "${routeType}")
 
@@ -398,10 +402,10 @@ objects:
 
           // Create a service routes using the default template
           def createServiceRoute(String appName, String targetNamespace, String suffix) {
+            // -p suffix=${suffix} \
 
             sh "oc process -f openshift/meta-templates/service-route.yaml \
               -p appName=${appName} \
-              -p suffix=${suffix} \
               -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
 
           }
