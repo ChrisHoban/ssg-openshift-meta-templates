@@ -431,8 +431,6 @@ objects:
         ref: ${gitRef}
         uri: ${gitUrl}
       type: Git
-      sourceSecret:
-        name: ${gitPrivateSshKey}
     strategy:
       sourceStrategy:
        from:
