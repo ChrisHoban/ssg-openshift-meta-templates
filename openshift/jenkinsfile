@@ -61,7 +61,7 @@ try {
 		stage('Promote to DEV') {
 			openshift.withCluster() {
 				sh "echo Tagging image for DEV"
-				openshift.tag("${APP_NAME}:latest", "dev")
+				openshift.tag("${APP_NAME}:latest", "${APP_NAME}:dev")
 			}
 		}
 
