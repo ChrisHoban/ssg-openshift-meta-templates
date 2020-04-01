@@ -1,22 +1,6 @@
 try {
 
 	node("${JENKINS_POD}") {
-		
-		stage("Get Build Config") {
-			dir("${APP_NAME}") {
-
-				artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-				artifactExists = fileExists artifactPath
-
-				if (artifactExists){
-					env.BUILD_CONFIG_PATH = artifactPath
-				} else {
-					env.BUILD_CONFIG_PATH = "openshift/meta-templates/deployment-config.yaml"
-				}
-
-				sh "echo build config path: ${BUILD_CONFIG_PATH}"
-			}
-		}
 
 		// Checkout Openshift metadata template
 		stage("Checkout Templates") {
@@ -32,6 +16,22 @@ try {
 					git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
 					env.GIT_COMMIT = getCommit()
 				}
+			}
+		}
+		
+		stage("Get Build Config") {
+			dir("${APP_NAME}") {
+
+				artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
+				artifactExists = fileExists artifactPath
+
+				if (artifactExists){
+					env.BUILD_CONFIG_PATH = artifactPath
+				} else {
+					env.BUILD_CONFIG_PATH = "openshift/meta-templates/deployment-config.yaml"
+				}
+
+				sh "echo build config path: ${BUILD_CONFIG_PATH}"
 			}
 		}
 
