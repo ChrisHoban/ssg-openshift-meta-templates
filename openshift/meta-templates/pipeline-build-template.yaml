@@ -24,10 +24,19 @@ parameters:
   displayName: Application Domain
   name: appDomain
   value:
-- description: The URL of the repository with your application source code.
-  displayName: Git Repository URL
-  name: gitUrl
+- name: routeType
+  description: The application route configuration value can be `private` for pathfinder.bcgov, `public` for pathfinder.gov.bc.ca, `none` if you don't want any.
+  displayName: Route type
+  value: private
   required: true
+- name: gitUrl
+  displayName: Git Remote URL
+  description: The remote URL of the repository with your application source code, support https and ssh
+  required: true
+  value:
+- name: gitPrivateSshKey
+  displayName: Git SSH Key
+  description: For private repo, the name of the secret with the ssh keys to authenticate
   value:
 - description: Set this to a branch name, tag or other ref of your repository if you
     are not using the default branch.
@@ -35,8 +44,7 @@ parameters:
   name: gitRef
   value: master
   required: true
-- description: Set this to the relative path to your project if it is not in the root
-    of your repository.
+- description: Set this to the relative path to your project, if emtpy defaulted to root of the repository
   displayName: Context Directory
   name: gitContextDir
   value:
@@ -55,10 +63,16 @@ parameters:
   required: true
   name: sourceImage
   value: dotnet:2.1
+- name: sourceImageNamespace
+  displayName: Source Image Namespace
+  description: The source image namespace defaulted to openshift
+  required: true
+  value: openshift
 - description: Lifecycle Webhook (IE Slack, RocketChat etc)
   displayName: Lifecycle Webhook
   name: lifecycleHook
   value:
+
 # BuildConfig (High defaults, uses short running resource pool)
 - description: Build Config CPU Limit for builder pod (eg 1 or 200m for 1 core or 200 millicores )
   displayName: Build Config CPU Limit
@@ -126,12 +140,10 @@ parameters:
   value: "false"
 - description: Sonarqube Instance URL
   displayName: Sonarqube URL
-  required: true
   name: sonarUrl
   value: 'http://sonarqube:9000'
 - description: Sonarqube Analysis Command (For Jenkins Stage, will pull down code and run the command given (IE 'maven sonar:sonar'))
   displayName: Sonarqube Command
-  required: true
   name: sonarCommand
   value:
 - description: Sonarqube Raw Token
@@ -142,8 +154,6 @@ parameters:
   displayName: Sonarqube Jenkins Credential ID
   name: sonarJenkinsCredentialId
   value:
-
-
 
 objects:
 - apiVersion: v1
@@ -187,6 +197,8 @@ objects:
           value: ${gitSecret}
         - name: GIT_CONTEXT_DIR
           value: ${gitContextDir}
+        - name: CHECKOUT_SRC
+          value: ${gitCheckoutRequired}
         - name: JENKINS_POD
           value: ${jenkinsPod}
         - name: SONAR_TOKEN
@@ -207,227 +219,184 @@ objects:
           value: "${namespacePrefix}-test"
         - name: PROD_NAMESPACE
           value: "${namespacePrefix}-prod"
+        - name: ROUTE_TYPE
+          value: "${routeType}"
         jenkinsfile: |-
           try {
+
             node("${JENKINS_POD}") {
-                // Checkout SCM
-                stage("Checkout") {
-                  dir("${APP_NAME}") {
-                    git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
-                    // Now pull down meta templates
-                    git url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates.git"
-                  }
-                }
 
-                // Deploy Build Config, Build Image
-                stage("Build ${APP_NAME}") {
-                  dir("${APP_NAME}") {
-                    timeout(time: 10, unit: 'MINUTES') {
-                     openshift.withCluster() {
+              // Checkout Openshift metadata template
+              stage("Checkout Templates") {
+                dir("${APP_NAME}") {
+                  //git url: "${GIT_SOURCE_URL}", branch: "${GIT_SOURCE_REF}", credentialsId: "${GIT_CREDENTIALS_ID}"
+                  //env.GIT_COMMIT = getCommit()
+                  git url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates.git"
+                }
+              }
+              
+              stage("Get Build Config") {
+                dir("${APP_NAME}") {
+
+                  artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
+                  artifactExists = fileExists artifactPath
+
+                  if (artifactExists){
+                    env.BUILD_CONFIG_PATH = artifactPath
+                  } else {
+                    env.BUILD_CONFIG_PATH = "openshift/meta-templates/deployment-config.yaml"
+                  }
+
+                  sh "echo build config path: ${BUILD_CONFIG_PATH}"
+                }
+              }
+
+              // Deploy Build Config, Build Image
+              stage("Build ${APP_NAME}") {
+                dir("${APP_NAME}") {
+                  timeout(time: 10, unit: 'MINUTES') {
+                    openshift.withCluster() {
                       openshift.withProject() {
-                       // @todo build config as code
-                       //def bcSelector = openshift.selector("bc", "${APP_NAME}")
-                       //bcSelector.object()
-                       //builds = bcSelector.related("builds")
-                       //builds.watch {
-                       //if (it.count() == 0) {
-                       //  return false
-                       // }
-                       //  return true
-                       // }
-                       //builds.untilEach {
-                       // return it.object().status.phase == "Complete"
-                       //}
-                       def bld = openshift.startBuild(env.APP_NAME)
-                       bld.untilEach {
-                         return (it.object().status.phase == "Complete")
-                       }
-                       bld.logs('-f')
+                        def bld = openshift.startBuild(env.APP_NAME)
+                        bld.untilEach {
+                          return (it.object().status.phase == "Complete")
+                        }
+                        bld.logs('-f')
                       }
-                     }
-                    }
-
-                  }
-                }
-
-
-                if ("${SONAR_ENABLED}"!="false") {
-                  stage("Sonar Scan") {
-                    timeout(time: 8, unit: 'MINUTES') {
-                      // @todo one size fits all sonarqube
-                      sh "ls -a"
-                      sh "${SONAR_COMMAND}" // -f./${CONTEXT_DIR}/pom.xml -Dsonar.host.url=${SONAR_URL} -Dsonar.login=${SONAR_TOKEN} -Dsonar.binaries=./${CONTEXT_DIR}/target/jrcc-loader.jar -Dsonar.junit.reportPaths=./${CONTEXT_DIR}/target/surefire-reports"
                     }
                   }
                 }
+              }
 
-                stage('Promote to DEV') {
-                 openshift.withCluster() {
+              if ("${SONAR_ENABLED}"!="false") {
+                stage("Sonar Scan") {
+                  timeout(time: 8, unit: 'MINUTES') {
+                    sh "ls -a"
+                    sh "${SONAR_COMMAND}"
+                  }
+                }
+              }
+
+              stage('Promote to DEV') {
+                openshift.withCluster() {
                   sh "echo Tagging image for DEV"
                   openshift.tag("${APP_NAME}:latest", "${APP_NAME}:dev")
-                 }
                 }
+              }
 
-                stage("Deploy ${APP_NAME}") {
-                 dir("${APP_NAME}") {
-                  sh "echo Creating DeploymentConfig in Dev"
-                  // Does the repository contain templates?
+              stage("Deploy ${APP_NAME}") {
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
+              }
 
-                  artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                  artifactExists = fileExists artifactPath;
-                  if (artifactExists){
-                    sh "echo found ${APP_NAME}-dc.yaml, processing..."
-                    // If so process them
-                    sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
-                  }else{
-                    // If not grab generic deploymentconfig
-                    sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
-                    sh "oc process -f openshift/meta-templates/deployment-config.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p namespace=${TOOLS_NAMESPACE} \
-                                   -p TAG=dev | oc apply -f - -n ${DEV_NAMESPACE}"
-
-                    //Also process service and route
-                    sh "oc process -f openshift/meta-templates/service-route.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p namespace=${DEV_NAMESPACE} | oc apply -f - -n ${DEV_NAMESPACE}"
-
-                  }
-
-
-                  sh "echo Wait for service to be up"
-                  timeout(time: 180, unit: 'SECONDS') {
-                   openshift.withCluster() {
-                    openshift.withProject("${DEV_NAMESPACE}") {
-                     def dc = openshift.selector('dc', "${APP_NAME}")
-                     // this will wait until the desired replicas are available
-                     dc.rollout().status()
-                    }
-                   }
-                  }
-                 }
+              stage('Promotion gate') {
+                script {
+                  input message: 'Promote application to Test?'
                 }
+              }
 
-                stage('Promotion gate') {
-                    script {
-                        input message: 'Promote application to Test?'
-                    }
-                }
-
-                stage('Promote to TEST') {
-                 openshift.withCluster() {
+              stage('Promote to TEST') {
+                openshift.withCluster() {
                   sh "echo Tagging image for TEST"
-                  openshift.tag("${APP_NAME}:dev", "${APP_NAME}:test")
-                 }
+                  openshift.tag("${APP_NAME}:latest", "${APP_NAME}:test")
                 }
+              }
 
-                stage("Deploy ${APP_NAME}") {
-                 dir("${APP_NAME}") {
-                  sh "echo Creating DeploymentConfig in TEST"
+              stage("Deploy ${APP_NAME}") {
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
+              }
 
-                  // Does the repository contain templates?
-                  artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                  artifactExists = fileExists artifactPath;
-                  if (artifactExists){
-                    sh "echo found ${APP_NAME}-dc.yaml, processing..."
-                    // If so process them
-                    sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p TAG=dev | oc apply -f - -n ${TEST_NAMESPACE}"
-                  }else{
-                    // If not grab generic deploymentconfig
-                    sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
-                    sh "oc process -f openshift/meta-templates/deployment-config.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p namespace=${TOOLS_NAMESPACE} \
-                                   -p TAG=test | oc apply -f - -n ${TEST_NAMESPACE}"
-
-                    //Also process service and route
-                    sh "oc process -f openshift/meta-templates/service-route.yaml \
-                                   -p appName=${APP_NAME} \
-                                   -p namespace=${TEST_NAMESPACE} | oc apply -f - -n ${TEST_NAMESPACE}"
-
-                  }
-
-                  sh "echo Wait for service to be up"
-                  timeout(time: 180, unit: 'SECONDS') {
-                   openshift.withCluster() {
-                    openshift.withProject("${TEST_NAMESPACE}") {
-                     def dc = openshift.selector('dc', "${APP_NAME}")
-                     // this will wait until the desired replicas are available
-                     dc.rollout().status()
-                    }
-                   }
-                  }
-                 }
+              stage('Promotion gate') {
+                script {
+                  input message: 'Promote application to Prod?'
                 }
+              }
 
-                stage('Promotion gate') {
-                    script {
-                        input message: 'Promote application to Prod?'
-                    }
-                }
-
-                stage('Promote to PROD') {
-                 openshift.withCluster() {
+              stage('Promote to PROD') {
+                openshift.withCluster() {
                   sh "echo Tagging image for prod"
-                  openshift.tag("${APP_NAME}:test", "${APP_NAME}:prod")
-                 }
+                  openshift.tag("${APP_NAME}:latest", "${APP_NAME}:prod")
                 }
+              }
 
-                stage("Deploy ${APP_NAME}") {
-                 dir("${APP_NAME}") {
-                  sh "echo Creating DeploymentConfig in Prod"
+              stage("Deploy ${APP_NAME}") {
+                deploy("${BUILD_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
+              }
+            }
 
-                // Does the repository contain templates?
-                artifactPath = "/openshift/templates/${APP_NAME}-dc.yaml"
-                artifactExists = fileExists artifactPath;
-                if (artifactExists){
-                  sh "echo found ${APP_NAME}-dc.yaml, processing..."
-                  // If so process them
-                  sh "oc process -f openshift/templates/${APP_NAME}-dc.yaml \
-                                 -p appName=${APP_NAME} \
-                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
-                }else{
-                  // If not grab generic deploymentconfig
-                  sh "echo did not find ${APP_NAME}-dc.yaml, processing generic dc..."
-                  sh "oc process -f openshift/meta-templates/deployment-config.yaml \
-                                 -p appName=${APP_NAME} \
-                                 -p namespace=${TOOLS_NAMESPACE} \
-                                 -p TAG=prod | oc apply -f - -n ${PROD_NAMESPACE}"
-
-                  //Also process service and route
-                  sh "oc process -f openshift/meta-templates/service-route.yaml \
-                                 -p appName=${APP_NAME} \
-                                 -p namespace=${PROD_NAMESPACE} | oc apply -f - -n ${PROD_NAMESPACE}"
-
-                }
-                  sh "echo Wait for service to be up"
-                  timeout(time: 180, unit: 'SECONDS') {
-                   openshift.withCluster() {
-                    openshift.withProject("${PROD_NAMESPACE}") {
-                     def dc = openshift.selector('dc', "${APP_NAME}")
-                     // this will wait until the desired replicas are available
-                     dc.rollout().status()
-                    }
-                   }
-                  }
-                 }
-                }
-             }
           } catch (err) {
-             echo "in catch block"
+            echo "in catch block"
 
-             currentBuild.result = 'FAILURE'
-             env.ERR = "${err}"
-             node {
+            currentBuild.result = 'FAILURE'
+            env.ERR = "${err}"
+            node {
                 sh "curl -XPOST '${LIFECYCLE_WEBHOOK}' -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\",\"icon_emoji\":\":lion_face:\",\"text\": \"${APP_NAME} Pipeline Failure - ${ERR}\"}'"
-             }
-             echo "Caught: ${err}"
-             throw err
+            }
+            echo "Caught: ${err}"
+            throw err
           }
+
+          String getCommit() {
+              return sh(script: 'git rev-parse HEAD', returnStdout: true)?.trim()
+          }
+
+          // Deploy application to environment
+          def deploy(String buildConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version) {
+            dir("${appName}") {
+              
+              sh "echo Creating DeploymentConfig in ${targetNamespace}"
+
+              // If not grab generic deploymentconfig
+              sh "oc process -f ${buildConfigPath} \
+                -p appName=${appName} \
+                -p namespace=${sourceNamespace} \
+                -p TAG=${version} | oc apply -f - -n ${targetNamespace}"
+
+              createRoute("${appName}", "${targetNamespace}", "${routeType}")
+
+              sh "echo Wait for service to be up"
+              
+              timeout(time: 180, unit: 'SECONDS') {
+                openshift.withCluster() {
+                  openshift.withProject("${targetNamespace}") {
+                    def dc = openshift.selector('dc', "${appName}")
+                    // this will wait until the desired replicas are available
+                    dc.rollout().status()
+                  }
+                }
+              }
+
+            }
+          }
+
+          // Create a service routes using the default template and apply the government suffix pattern
+          def createRoute(String appName, String targetNamespace, String routeType) {
+            
+            try {
+
+              sh "oc get routes ${appName} -n ${targetNamespace}"
+
+            } catch (err) {
+
+              if(routeType == "private") {
+                createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.bcgov")
+              } else if (routeType == "public") {
+                createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.gov.bc.ca")
+              }
+
+            }
+
+          }
+
+          // Create a service routes using the default template
+          def createServiceRoute(String appName, String targetNamespace, String suffix) {
+            // -p suffix=${suffix} \
+
+            sh "oc process -f openshift/meta-templates/service-route.yaml \
+              -p appName=${appName} \
+              -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
+
+          }
+
 
       type: JenkinsPipeline
 - apiVersion: v1
@@ -464,5 +433,5 @@ objects:
        from:
          kind: ImageStreamTag
          name: ${sourceImage}
-         namespace: openshift
+         namespace: ${sourceImageNamespace}
       type: Source
