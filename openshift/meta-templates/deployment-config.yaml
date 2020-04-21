@@ -17,6 +17,20 @@ parameters:
     required: true
   - name: container_port
     value: '8080'
+  - name: cpu_request
+    description: The minimum amount of CPU the container is guaranteed.
+    value: '100m'
+  - name: memory_request
+    description: The minimum amount of memory the container is guaranteed.
+    value: '256Mi'
+  - name: cpu_limit
+    description: The maximum amount of CPU the container is allowed to use when running.
+    value: '250m'
+  - name: memory_limit
+    description: The maximum amount of memory the container is allowed to use when running.
+    value: '1Gi'
+  - name: replicas
+    value: '2'
 objects:
   - apiVersion: v1
     kind: DeploymentConfig
@@ -27,7 +41,7 @@ objects:
         app: ${appName}
       name: ${appName}
     spec:
-      replicas: 2
+      replicas: ${{replicas}}
       selector:
         io.kompose.service: ${appName}
       strategy:
@@ -43,7 +57,13 @@ objects:
             name: ${appName}
             ports:
             - containerPort: ${{container_port}}
-            resources: {}
+            resources:
+              requests:
+                cpu: ${cpu_request}
+                memory: ${memory_request}
+              limits:
+                cpu: ${cpu_limit}
+                memory: ${memory_limit}
           restartPolicy: Always
       test: false
       triggers:
