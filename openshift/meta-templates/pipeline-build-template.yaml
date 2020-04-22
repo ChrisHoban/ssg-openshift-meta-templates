@@ -53,6 +53,10 @@ parameters:
   from: '[a-zA-Z0-9]{40}'
   generate: expression
   name: gitSecret
+- description: The ID (name) of the git ssh private key as stored in Jenkins Credential Store
+  displayName: Git Jenkins Credentials ID
+  name: gitJenkinsCredentialsId
+  value:
 - description: The OpenShift Namespace prefix where the ImageStreams reside.
   displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
   name: namespacePrefix
@@ -150,9 +154,9 @@ parameters:
   displayName: Sonarqube Token
   name: sonartoken
   value: ''
-- description: The ID (name) of the SonarQube Token as stored in Jenkins Credential Store
-  displayName: Sonarqube Jenkins Credential ID
-  name: sonarJenkinsCredentialId
+- description: Sonarqube project key
+  displayName: Sonarqube project key
+  name: sonarProjectKey
   value:
 
 objects:
@@ -180,7 +184,7 @@ objects:
     triggers:
     - type: "GitHub"
       github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
+        secret: ${gitSecret}
     - type: "ConfigChange"
     strategy:
       jenkinsPipelineStrategy:
@@ -194,7 +198,7 @@ objects:
         - name: GIT_SOURCE_REF
           value: ${gitRef}
         - name: GIT_CREDENTIALS_ID
-          value: ${gitSecret}
+          value: ${gitJenkinsCredentialsId}
         - name: GIT_CONTEXT_DIR
           value: ${gitContextDir}
         - name: CHECKOUT_SRC
@@ -203,8 +207,8 @@ objects:
           value: ${jenkinsPod}
         - name: SONAR_TOKEN
           value: ${sonartoken}
-        - name: SONAR_CREDENTIAL_ID
-          value: ${sonarJenkinsCredentialId}
+        - name: SONAR_PROJECT_KEY
+          value: ${sonarProjectKey}
         - name: SONAR_URL
           value: ${sonarUrl}
         - name: SONAR_COMMAND
@@ -273,6 +277,12 @@ objects:
                   timeout(time: 8, unit: 'MINUTES') {
                     sh "ls -a"
                     sh "${SONAR_COMMAND}"
+                    // sh """
+                    // sonar-scanner \
+                    //  -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                    //  -Dsonar.host.url=${SONAR_URL} \
+                    //  -Dsonar.login=${SONAR_TOKEN}
+                    // """
                   }
                 }
               }
