@@ -29,6 +29,10 @@ parameters:
   displayName: Route type
   value: private
   required: true
+- name: secureRoute
+  description: The application route is either secure(https) or un-secure(http).
+  value: http
+  required: true
 - name: gitUrl
   displayName: Git Remote URL
   description: The remote URL of the repository with your application source code, support https and ssh
@@ -221,6 +225,8 @@ objects:
           value: "${namespacePrefix}-prod"
         - name: ROUTE_TYPE
           value: "${routeType}"
+        - name: SECURE_ROUTE
+          value: "${secureRoute}"
         jenkinsfile: |-
           try {
             timeout(time: 33, unit: 'MINUTES') {
@@ -282,7 +288,7 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev", "${SECURE_ROUTE}")
                 }
 
                 stage('Promotion gate') {
@@ -299,7 +305,7 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test", "${SECURE_ROUTE}")
                 }
 
                 stage('Promotion gate') {
@@ -316,7 +322,7 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod", "${SECURE_ROUTE}")
                 }
               }
             }
@@ -337,10 +343,10 @@ objects:
           }
 
           // Deploy application to environment
-          def deploy(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version) {
+          def deploy(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version, String secureRoute) {
             dir("${appName}") {
 
-              deployTemplates("${deploymentConfigPath}", "${appName}", "${sourceNamespace}", "${targetNamespace}", "${routeType}", "${version}")
+              deployTemplates("${deploymentConfigPath}", "${appName}", "${sourceNamespace}", "${targetNamespace}", "${routeType}", "${version}", "${secureRoute}")
 
               sh "echo Wait for service to be up"
               timeout(time: 5, unit: 'MINUTES') {
@@ -358,16 +364,23 @@ objects:
 
 
           // Create a service routes using the default template
-          def createServiceRoute(String appName, String targetNamespace, String suffix) {
-            sh "oc process -f openshift/meta-templates/service-route.yaml \
-              -p appName=${appName} \
-              -p suffix=${suffix} \
-              -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
-
+          def createServiceRoute(String appName, String targetNamespace, String suffix, String secureRoute) {
+            if (${secureRoute} == 'http') {
+              sh "oc process -f openshift/meta-templates/service-route.yaml \
+                -p appName=${appName} \
+                -p suffix=${suffix} \
+                -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
+            }
+            else if (${secureRoute} == 'https') {
+              sh "oc process -f openshift/meta-templates/service-route-secure.yaml \
+                -p appName=${appName} \
+                -p suffix=${suffix} \
+                -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
+            }
           }
 
           // deploy template by Priority: Project Repo Template > OpenShift Template Exists (Skip) > Default Meta Template
-          def deployTemplates(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version){
+          def deployTemplates(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version, String secureRoute){
               def templateExists
               openshift.withCluster() {
                 openshift.withProject("${targetNamespace}") {
@@ -388,9 +401,9 @@ objects:
 
                 // Deploy generic route
                 if(routeType == "private") {
-                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.bcgov")
+                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.bcgov", "${secureRoute}")
                 } else if (routeType == "public") {
-                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.gov.bc.ca")
+                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.gov.bc.ca", "${secureRoute}")
                 }
               }
 
