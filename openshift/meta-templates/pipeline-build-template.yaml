@@ -208,7 +208,7 @@ objects:
         - name: GIT_SOURCE_REF
           value: ${gitRef}
         - name: GIT_CREDENTIALS_ID
-          value: ${appName}-github-key
+          value: ${namespacePrefix}-tools-${appName}-github-key
         - name: GIT_CONTEXT_DIR
           value: ${gitContextDir}
         - name: CHECKOUT_SRC
