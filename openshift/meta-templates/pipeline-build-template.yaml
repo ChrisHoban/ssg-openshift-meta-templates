@@ -124,6 +124,20 @@ parameters:
   required: true
   name: dcMemRequest
   value: 128Mi
+- description: Deploy Config Health Check URL Path
+  displayName: Deploy Config Health Check
+  required: true
+  name: healthCheckRoute
+- description: Deploy Config Readiness Check Time Delay in Seconds (Less than Liveness)
+  displayName: Deploy Config Readiness Check Time Delay
+  required: true
+  name: readinessCheckDelay
+  value: '120'
+- description: Deploy Config Liveness Check Time Delay in Seconds (Greater than Readiness)
+  displayName: Deploy Config Liveness Check
+  required: true
+  name: livenessCheckDelay
+  value: '70'
 
 #Pipeline Specific
 - description: Jenkins Pod Image Name
@@ -221,6 +235,12 @@ objects:
           value: "${namespacePrefix}-prod"
         - name: ROUTE_TYPE
           value: "${routeType}"
+        - name: HEALTH_CHECK_ROUTE
+          value: ${healthCheckRoute}
+        - name: READINESS_CHECK_DELAY
+          value: ${readinessCheckDelay}
+        - name: LIVENESS_CHECK_DELAY
+          value: ${livenessCheckDelay}
         jenkinsfile: |-
           try {
             timeout(time: 33, unit: 'MINUTES') {
@@ -282,7 +302,8 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
+
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev", "${HEALTH_CHECK_ROUTE}", "${READINESS_CHECK_DELAY}", "${LIVENESS_CHECK_DELAY}")
                 }
 
                 stage('Promotion gate') {
@@ -299,7 +320,7 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test", "${HEALTH_CHECK_ROUTE}", "${READINESS_CHECK_DELAY}", "${LIVENESS_CHECK_DELAY}")
                 }
 
                 stage('Promotion gate') {
@@ -316,7 +337,7 @@ objects:
                 }
 
                 stage("Deploy ${APP_NAME}") {
-                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
+                  deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod", "${HEALTH_CHECK_ROUTE}", "${READINESS_CHECK_DELAY}", "${LIVENESS_CHECK_DELAY}")
                 }
               }
             }
@@ -337,10 +358,11 @@ objects:
           }
 
           // Deploy application to environment
-          def deploy(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version) {
+          def deploy(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, 
+                     String routeType, String version, String healthCheckRoute, String readinessCheckDelay, String livenessCheckDelay) {
             dir("${appName}") {
 
-              deployTemplates("${deploymentConfigPath}", "${appName}", "${sourceNamespace}", "${targetNamespace}", "${routeType}", "${version}")
+              deployTemplates("${deploymentConfigPath}", "${appName}", "${sourceNamespace}", "${targetNamespace}", "${routeType}", "${version}", "${healthCheckRoute}", "${readinessCheckDelay}", "${livenessCheckDelay}")
 
               sh "echo Wait for service to be up"
               timeout(time: 5, unit: 'MINUTES') {
@@ -367,7 +389,8 @@ objects:
           }
 
           // deploy template by Priority: Project Repo Template > OpenShift Template Exists (Skip) > Default Meta Template
-          def deployTemplates(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version){
+          def deployTemplates(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, 
+                              String routeType, String version, String healthCheckRoute, String readinessCheckDelay, String livenessCheckDelay){
               def templateExists
               openshift.withCluster() {
                 openshift.withProject("${targetNamespace}") {
@@ -384,7 +407,10 @@ objects:
                 sh "oc process -f ${deploymentConfigPath} \
                   -p appName=${appName} \
                   -p namespace=${sourceNamespace} \
-                  -p TAG=${version} | oc apply -f - -n ${targetNamespace}"
+                  -p TAG=${version} \
+                  -p healthCheckRoute=${healthCheckRoute} \
+                  -p readinessCheckDelay=${readinessCheckDelay} \
+                  -p livenessCheckDelay=${livenessCheckDelay} | oc apply -f - -n ${targetNamespace}"
 
                 // Deploy generic route
                 if(routeType == "private") {

@@ -31,6 +31,19 @@ parameters:
     value: '1Gi'
   - name: replicas
     value: '2'
+  - name: healthCheckRoute
+    display: Health Check Route
+    description: URL Path to Application Health Check End Point
+    required: true
+  - name: readinessCheckDelay
+    display: Readiness Check Delay
+    description: Deploy Config Readiness Check Time Delay in Seconds (Less than Liveness)
+    required: true
+  - name: livenessCheckDelay
+    display: Liveness Check Delay
+    description: Deploy Config Liveness Check Time Delay in Seconds (Greater than Readiness)
+    required: true
+
 objects:
   - apiVersion: v1
     kind: DeploymentConfig
@@ -64,6 +77,26 @@ objects:
               limits:
                 cpu: ${cpu_limit}
                 memory: ${memory_limit}
+              readinessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: ${healthCheckRoute}
+                  port: ${container_port}
+                  scheme: HTTP
+                initialDelaySeconds: ${readinessCheckDelay}
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 10
+              livenessProbe:
+                failureThreshold: 3
+                httpGet:
+                  path: ${healthCheckRoute}
+                  port: ${container_port}
+                  scheme: HTTP
+                initialDelaySeconds: ${livenessCheckDelay}
+                periodSeconds: 10
+                successThreshold: 1
+                timeoutSeconds: 10
           restartPolicy: Always
       test: false
       triggers:
