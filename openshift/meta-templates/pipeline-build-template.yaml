@@ -48,15 +48,15 @@ parameters:
   displayName: Context Directory
   name: gitContextDir
   value:
-- description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
+- description: Github trigger secret. A difficult to guess string encoded as part of the webhook URL. Not encrypted.
   displayName: GitHub Webhook Secret (Generated if empty)
   from: '[a-zA-Z0-9]{40}'
   generate: expression
   name: gitSecret
-- description: The ID (name) of the git ssh private key as stored in Jenkins Credential Store
-  displayName: Git Jenkins Credentials ID
-  name: gitJenkinsCredentialsId
-  value:
+- description: The git ssh private key to access/write git repo (synced to Jenkins Credential Store)
+  displayName: Git ssh private key
+  name: gitSshPrivateKey
+  value: c2V0LnNzaC1wcml2YXRlLWtleQ==
 - description: The OpenShift Namespace prefix where the ImageStreams reside.
   displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
   name: namespacePrefix
@@ -161,6 +161,16 @@ parameters:
 
 objects:
 - apiVersion: v1
+  data:
+    ssh-privatekey: >-
+      ${gitSshPrivateKey}
+  kind: Secret
+  metadata:
+    labels:
+      credential.sync.jenkins.openshift.io: 'true'
+    name: ${appName}-github-key
+  type: kubernetes.io/ssh-auth
+- apiVersion: v1
   kind: ImageStream
   metadata:
     labels:
@@ -198,7 +208,7 @@ objects:
         - name: GIT_SOURCE_REF
           value: ${gitRef}
         - name: GIT_CREDENTIALS_ID
-          value: ${gitJenkinsCredentialsId}
+          value: ${appName}-github-key
         - name: GIT_CONTEXT_DIR
           value: ${gitContextDir}
         - name: CHECKOUT_SRC
