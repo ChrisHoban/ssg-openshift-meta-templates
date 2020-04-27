@@ -18,7 +18,10 @@ parameters:
   displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
   name: namespacePrefix
   required: true
-  value:
+- description: The Openshift Environment the user is deploying these policies into
+  displayName: Environment (ie// tools, dev, test, prod)
+  name: environment 
+  required: true
 objects:
 - apiVersion: secops.pathfinder.gov.bc.ca/v1alpha1
   kind: NetworkSecurityPolicy
@@ -31,7 +34,7 @@ objects:
       allow all pods in the namespace to talk amongst
       themselves
     source:
-      - - $namespace=${namespacePrefix}-tools
+      - - $namespace=${environment}
     destination:
       - - $namespace=${namespacePrefix}-dev
       - - $namespace=${namespacePrefix}-test
@@ -48,10 +51,9 @@ objects:
       allow all pods in the namespace to talk amongst
       themselves
     source:
-      - - $namespace=${namespacePrefix}-dev
+      - - $namespace=${environment}
     destination:
-      - - $namespace=${namespacePrefix}-dev
-      - - $namespace=${namespacePrefix}-tools
+      - - $namespace=${environment}
 - apiVersion: secops.pathfinder.gov.bc.ca/v1alpha1
   kind: NetworkSecurityPolicy
   metadata:
