@@ -211,6 +211,8 @@ objects:
           value: ${sonarCommand}
         - name: SONAR_ENABLED
           value: ${sonarEnabled}
+        - name: NAMESPACE_PREFIX
+          value: ${namespacePrefix}
         - name: TOOLS_NAMESPACE
           value: "${namespacePrefix}-tools"
         - name: DEV_NAMESPACE
@@ -246,7 +248,11 @@ objects:
                   }
                 }
 
-
+                stage("Tools Network Security Policies") {
+                  dir("${APP_NAME}") {
+                    createNetworkSecurityPolicies("${NAMESPACE_PREFIX}", "${TOOLS_NAMESPACE}")
+                  }
+                }
 
                 // Build Image
                 stage("Build ${APP_NAME}") {
@@ -285,6 +291,12 @@ objects:
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
                 }
 
+                stage("Dev Network Security Policies") {
+                  dir("${APP_NAME}") {
+                    createNetworkSecurityPolicies("${NAMESPACE_PREFIX}", "${DEV_NAMESPACE}")
+                  }
+                }
+
                 stage('Promotion gate') {
                   script {
                     input message: 'Promote application to Test?'
@@ -300,6 +312,12 @@ objects:
 
                 stage("Deploy ${APP_NAME}") {
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
+                }
+
+                stage("Test Network Security Policies") {
+                  dir("${APP_NAME}") {
+                    createNetworkSecurityPolicies("${NAMESPACE_PREFIX}", "${TEST_NAMESPACE}")
+                  }
                 }
 
                 stage('Promotion gate') {
@@ -318,11 +336,16 @@ objects:
                 stage("Deploy ${APP_NAME}") {
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
                 }
+
+                stage("Prod Network Security Policies") {
+                  dir("${APP_NAME}") {
+                    createNetworkSecurityPolicies("${NAMESPACE_PREFIX}", "${PROD_NAMESPACE}")
+                  }
+                }
               }
             }
           } catch (err) {
             echo "in catch block"
-
             currentBuild.result = 'FAILURE'
             env.ERR = "${err}"
             node {
@@ -352,7 +375,6 @@ objects:
                   }
                 }
               }
-
             }
           }
 
@@ -363,37 +385,45 @@ objects:
               -p appName=${appName} \
               -p suffix=${suffix} \
               -p namespace=${targetNamespace} | oc apply -f - -n ${targetNamespace}"
-
           }
 
           // deploy template by Priority: Project Repo Template > OpenShift Template Exists (Skip) > Default Meta Template
           def deployTemplates(String deploymentConfigPath, String appName, String sourceNamespace, String targetNamespace, String routeType, String version){
-              def templateExists
-              openshift.withCluster() {
-                openshift.withProject("${targetNamespace}") {
-                  templateExists = openshift.selector( "dc", "${appName}").exists()
-                }
+            def templateExists
+            openshift.withCluster() {
+              openshift.withProject("${targetNamespace}") {
+                templateExists = openshift.selector( "dc", "${appName}").exists()
               }
+            }
 
-              if(templateExists){
-                sh "echo ${appName} Deployment Configuration Exists in ${targetNamespace}, skipping baseline template deploy"
-              }else{
-                sh "echo ${appName} Deployment Configuration not found in ${targetNamespace}, performing baseline template deploy"
+            if(templateExists){
+              sh "echo ${appName} Deployment Configuration Exists in ${targetNamespace}, skipping baseline template deploy"
+            }else{
+              sh "echo ${appName} Deployment Configuration not found in ${targetNamespace}, performing baseline template deploy"
 
-                // deploy generic deploymentconfig
-                sh "oc process -f ${deploymentConfigPath} \
-                  -p appName=${appName} \
-                  -p namespace=${sourceNamespace} \
-                  -p TAG=${version} | oc apply -f - -n ${targetNamespace}"
+              // deploy generic deploymentconfig
+              sh "oc process -f ${deploymentConfigPath} \
+                -p appName=${appName} \
+                -p namespace=${sourceNamespace} \
+                -p TAG=${version} | oc apply -f - -n ${targetNamespace}"
 
-                // Deploy generic route
-                if(routeType == "private") {
-                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.bcgov")
-                } else if (routeType == "public") {
-                  createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.gov.bc.ca")
-                }
+              // Deploy generic route
+              if(routeType == "private") {
+                createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.bcgov")
+              } else if (routeType == "public") {
+                createServiceRoute("${appName}", "${targetNamespace}", "pathfinder.gov.bc.ca")
               }
+            }
+          }
 
+          //create network security policies for a specific environment
+          def createNetworkSecurityPolicies(String namespacePrefix, String environment) {
+            sh  "
+                oc process -f openshift/meta-templates/network-security-policies/open-network-security.yaml \
+                -p namespacePrefix=${namespacePrefix}
+                -p environment=${environment}
+                oc apply -f -n ${environment}
+                "
           }
 
 
