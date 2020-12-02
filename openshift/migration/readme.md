@@ -1,4 +1,4 @@
-# OpenShift Meta Template
+# OpenShift3 to OpenShift4 CLI Migration tool
 
 OpenShift 3 to OpenShift 4 migration tool is a simple approach to use the OC3 ClI and OC4 CLI to export templated kubernetes objects from OC3 Pathfinder project namespaces (tools, dev, test, prod) for one project, and then Import Kubernetes objects into OC4. It is in its early stages and will likely not cover an entire project migration. What its goal is, is to automate the tedium and start your OC4 namespace with specific builds, buildconfigs, deploymentconfigs, configmaps, secrets all populated. The idea is that the effort becomes restoring build pipelines in Tools with what is moved accross, such that real builds and deployments can be done to roll everything to a working state straight to Prod.
 
