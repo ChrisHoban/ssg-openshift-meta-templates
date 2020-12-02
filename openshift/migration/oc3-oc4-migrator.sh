@@ -2,13 +2,16 @@
 echo #### collect the params ####
 
 read -sp 'Openshift 3 Login Token: ' oc3_token
+echo "\n"
 read -p 'Openshift 3 License Plate: ' oc3_ns
+echo "\n"
 read -p 'Project Name: ' oc3_projectname
 
 echo ### Edit the below to point to your renamed oc3 and oc4 binary locations
 export PATH=$PATH:~c:/oc/
 export PATH=$PATH:~c:/oc4/
-echo $PATH;
+
+#### Comment out the objects you don't want to migrate ####
 kubernetes_obj=()
 kubernetes_obj+=('buildconfigs')
 kubernetes_obj+=('imagestreams')
@@ -60,7 +63,7 @@ oc3 get -o yaml --export all > ${oc3_projectname}-rawbackup.yaml
 
 echo #### Backup discrete kubernetes templates by object type ####
 for t in ${kubernetes_obj[@]}; do
-  oc3 export ${t} --as-template=${t}-replicationcontrollers > ${t}-replicationcontrollers.yaml
+  oc3 export ${t} --as-template=${oc3_projectname}-${t} > ${oc3_projectname}-${t}.yaml
 done
 
 echo##  Get back to parent directory for next stage
@@ -75,7 +78,7 @@ oc3 get -o yaml --export all > ${oc3_projectname}-rawbackup.yaml
 
 echo #### Backup discrete kubernetes templates by object type ####
 for t in ${kubernetes_obj[@]}; do
-  oc3 export ${t} --as-template=${t}-replicationcontrollers > ${t}-replicationcontrollers.yaml
+  oc3 export ${t} --as-template=${oc3_projectname}-${t} > ${oc3_projectname}-${t}.yaml
 done
 echo ### Get back to parent directory for next stage ###
 cd ..
@@ -89,7 +92,7 @@ oc3 get -o yaml --export all > ${oc3_projectname}-rawbackup.yaml
 
 echo #### Backup discrete kubernetes templates by object type ####
 for t in ${kubernetes_obj[@]}; do
-  oc3 export ${t} --as-template=${t}-replicationcontrollers > ${t}-replicationcontrollers.yaml
+  oc3 export ${t} --as-template=${oc3_projectname}-${t} > ${oc3_projectname}-${t}.yaml
 done
 
 echo ### Get back to parent directory for next stage ###
@@ -104,7 +107,7 @@ oc3 get -o yaml --export all > ${oc3_projectname}-rawbackup.yaml
 
 echo #### Backup discrete kubernetes templates by object type ####
 for t in ${kubernetes_obj[@]}; do
-  oc3 export ${t} --as-template=${t}-replicationcontrollers > ${t}-replicationcontrollers.yaml
+  oc3 export ${t} --as-template=${oc3_projectname}-${t} > ${oc3_projectname}-${t}.yaml
 done
 cd ..
 
