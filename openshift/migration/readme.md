@@ -14,6 +14,6 @@ OpenShift 3 to OpenShift 4 migration tool is a simple approach to use the OC3 CL
 
 ## Notes
 
-- Work in progress, may already provide value, but several object translation and a cleaner generation of services like Jenkins is in progress. This all may soon move to Ansible as well, though for now the .bat file approach is generally the lowest barrier to entry for now.
+- Work in progress, may already provide value, but several object translations, cleaner generation of services like Jenkins, and other migration features are in progress. This all may soon move to Ansible as well, though for now the .bat file approach is generally the lowest barrier to entry.
 
-** This does pull down your secrets to the local filesystem, in a later version these will be removed on successful import **
+## This does pull down your secrets to the local filesystem, in a later version these will be removed on successful import ##
