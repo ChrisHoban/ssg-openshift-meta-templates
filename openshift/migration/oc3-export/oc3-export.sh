@@ -31,15 +31,15 @@ EOF
 }
 
 checkEnv() {
-    if [ -z "$OC3_TOKEN" ] || [ -z "$OC3_LICENSEPLATE" ] || [ -z "$OC3_PROJECT" ]; then
+    if [ -z "$OC3_TOKEN" ] || [ -z "$OC3_LICENSEPLATE" ] || [ -z "$PROJECT" ] || [ -z "$OC3_ENVIRONMENT" ]; then
         usage
     else
         oc3_token="${OC3_TOKEN}"
         licenseplate="${OC3_LICENSEPLATE}"
-        projectname="${OC3_PROJECT}"
+        projectname="${PROJECT}"
         debug="${DEBUG}"
         # This explodes the ENVIRONMENT string (passed in as an environment variable) into an array
-        environments=(${ENVIRONMENT//,/ })
+        environments=(${OC3_ENVIRONMENT//,/ })
     fi
 }
 
@@ -120,8 +120,8 @@ processExport() {
     kubernetes_obj+=('replicasets')
     kubernetes_obj+=('replicationcontrollers')
     kubernetes_obj+=('resourcequotas')
-    kubernetes_obj+=('rolebindingrestrictions')
-    kubernetes_obj+=('rolebindings')
+    #kubernetes_obj+=('rolebindingrestrictions')
+    #kubernetes_obj+=('rolebindings')
     kubernetes_obj+=('routes')
     # Yes, we're exporting secrets.  This is being exported by the omnimanifest so the cat is already out of the bag.
     # *** DO NOT COMMIT THIS FILE TO GIT!!! ***
