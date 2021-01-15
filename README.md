@@ -24,6 +24,24 @@ paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta
  
 Fill out requested parameters 
 
+## Rocket Chat Integration
+
+If you would like to integrate Rocket Chat Webhooks to allow people outside of Openshift to monitor the progress of deployments, please complete the following:
+
+1. When signed into Rocket Chat, click on the following buttons:
+
+[![N|Solid](rocketChat-images/rc-integration-1.PNG)](rocketChat-images/rc-integration-1.PNG)
+
+[![N|Solid](rocketChat-images/rc-integration-2.PNG)](rocketChat-images/rc-integration-2.PNG)
+
+[![N|Solid](rocketChat-images/rc-integration-3.PNG)](rocketChat-images/rc-integration-3.PNG)
+
+[![N|Solid](rocketChat-images/rc-integration-4.PNG)](rocketChat-images/rc-integration-4.PNG)
+
+2. Complete the form, ensuring that you choose the proper channel for your Pipeline Messages to be sent to.
+
+The value displayed in the "Webhook URL" feed will be the value inserted into the LIFECYCLE_WEBHOOK variable in your pipeline when Rocket Chat reporting is enabled.
+
  
 ## Upcoming Features!
  

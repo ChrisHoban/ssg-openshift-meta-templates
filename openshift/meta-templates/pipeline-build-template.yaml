@@ -68,7 +68,13 @@ parameters:
   description: The source image namespace defaulted to openshift
   required: true
   value: openshift
-- description: Lifecycle Webhook (IE Slack, RocketChat etc)
+
+ # Rocket Chat Integration 
+- description: Enable RocketChat Reporting (ie// true or false)
+  displayName: RocketChat Reporting
+  name: rocketChatEnable
+  value: "false"
+- description: RocketChat Webhook URL
   displayName: Lifecycle Webhook
   name: lifecycleHook
   value:
@@ -189,6 +195,8 @@ objects:
           value: ${appName}
         - name: LIFECYCLE_WEBHOOK
           value: ${lifecycleHook}
+        - name: ROCKET_CHAT_ENABLED
+          value: ${rocketChatEnable}
         - name: GIT_SOURCE_URL
           value: ${gitUrl}
         - name: GIT_SOURCE_REF
@@ -263,6 +271,9 @@ objects:
                       }
                     }
                   }
+                  if ("${ROCKET_CHAT_ENABLED}" != "false") {
+                    sh  "curl -X POST -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\", \"icon_emoji\":\":lion_face:\", \"text\": \"Build ID: ${env.BUILD_ID} BUILD STAGE SUCCESS\"}' '${LIFECYCLE_WEBHOOK}'"
+                  }
                 }
 
                 if ("${SONAR_ENABLED}"!="false") {
@@ -283,6 +294,9 @@ objects:
 
                 stage("Deploy ${APP_NAME}") {
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${DEV_NAMESPACE}", "${ROUTE_TYPE}", "dev")
+                  if ("${ROCKET_CHAT_ENABLED}" != "false") {
+                    sh  "curl -X POST -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\", \"icon_emoji\":\":lion_face:\", \"text\": \"Build ID: ${env.BUILD_ID} Deplot to DEV Complete\"}' '${LIFECYCLE_WEBHOOK}'"
+                  }
                 }
 
                 stage('Promotion gate') {
@@ -300,6 +314,9 @@ objects:
 
                 stage("Deploy ${APP_NAME}") {
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${TEST_NAMESPACE}", "${ROUTE_TYPE}", "test")
+                  if ("${ROCKET_CHAT_ENABLED}" != "false") {
+                    sh  "curl -X POST -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\", \"icon_emoji\":\":lion_face:\", \"text\": \"Build ID: ${env.BUILD_ID} Deplot to TEST Complete\"}' '${LIFECYCLE_WEBHOOK}'"
+                  }
                 }
 
                 stage('Promotion gate') {
@@ -317,6 +334,9 @@ objects:
 
                 stage("Deploy ${APP_NAME}") {
                   deploy("${DEPLOYMENT_CONFIG_PATH}", "${APP_NAME}", "${TOOLS_NAMESPACE}", "${PROD_NAMESPACE}", "${ROUTE_TYPE}", "prod")
+                  if ("${ROCKET_CHAT_ENABLED}" != "false") {
+                    sh  "curl -X POST -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\", \"icon_emoji\":\":lion_face:\", \"text\": \"Build ID: ${env.BUILD_ID} Deplot to PROD Complete\"}' '${LIFECYCLE_WEBHOOK}'"
+                  }
                 }
               }
             }
