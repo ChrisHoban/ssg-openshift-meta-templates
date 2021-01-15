@@ -1,0 +1,8 @@
+version: "3.9"
+services:
+  app:
+    container_name: oc3-export
+    build: .
+    env_file: .env
+    volumes:
+      - .:/src
