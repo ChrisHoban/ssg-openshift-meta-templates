@@ -31,12 +31,12 @@ EOF
 }
 
 checkEnv() {
-    if [ -z "$TOKEN" ] || [ -z "$LICENSEPLATE" ] || [ -z "$PROJECT" ]; then
+    if [ -z "$OC3_TOKEN" ] || [ -z "$OC3_LICENSEPLATE" ] || [ -z "$OC3_PROJECT" ]; then
         usage
     else
-        oc3_token="${TOKEN}"
-        licenseplate="${LICENSEPLATE}"
-        projectname="${PROJECT}"
+        oc3_token="${OC3_TOKEN}"
+        licenseplate="${OC3_LICENSEPLATE}"
+        projectname="${OC3_PROJECT}"
         debug="${DEBUG}"
         # This explodes the ENVIRONMENT string (passed in as an environment variable) into an array
         environments=(${ENVIRONMENT//,/ })
