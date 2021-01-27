@@ -19,6 +19,20 @@ ENVIRONMENT: dev,test,prod,tools
 PROJECT: MyProject
 - This is an arbitrary project name used for helping keep the folder structure organized.
 
+DEBUG: 0
+- Turn on debugging output.
+- Boolean, default 0
+
+CLOBBER: 0
+ - Toggle the overwrite (aka clobbering) of existing files.
+ - Boolean, default 0
+ - Will overwrite omnimanifest regardless of setting.
+
+SANITIZE: 0
+ - create a sanitized version of the object manifest files.
+ - strips out unnecessary elements to allow the manifest file to be used for future importing.
+ - Boolean, default 0
+
 # Run
 
 To run the project simply run the docker-compose
@@ -28,3 +42,6 @@ For convince the container just mounts the local folder rather than copying the 
 # Output
 
 The output will display discrepancies between the omnimanifest and the category files.
+
+# Known Issues
+- on a Windows system we discovered that the due to mounting the OS you have to explicitly share the folder within your docker server settings.

@@ -3,8 +3,8 @@
 ####
 #
 #   Used to compare the omnimanifest, that was exported from openshift 3, to the catagory manifests
-#   to determine if something may have gone wrong.  This is not a definitive test as we're only
-#   comparing one way.
+#   to determine if something may have gone wrong.
+#   This is not a definitive test as we're only comparing one way.
 #
 #   ** CAUTION: This exports the oc secrets - DO NOT COMMIT SECRETS TO GIT!
 #
@@ -49,7 +49,7 @@ for filename in os.listdir(directory):
 
 
 # for each item in the omniManifestList we need to see if we can find that item in the groupedManifestList
-pprint("Searching through omnimanifest on project "+directory)
+pprint("Comparing omnimanifest to discreet objects in: "+directory)
 for itemList in omniManifestList:
 
     #pprint(itemList)
