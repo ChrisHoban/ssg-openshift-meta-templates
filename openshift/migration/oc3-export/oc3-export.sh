@@ -11,52 +11,59 @@ set -e
 #   then validates by downloading the entire namespace
 #   and compares the outputes to ensure they're are the same
 #
-#   ** WARNING: This blindly overwrites the destination files on each run.
 #   ** CAUTION: This exports the oc secrets - DO NOT COMMIT SECRETS TO GIT!
 #
 ####
 
 PROGNAME=$0
 
-usage() {
+function usage() {
     cat << EOF >&2
 Usage: $PROGNAME [-t] [-l] [-p]
 
 -t <loginhash> : (required) obtain the token from the opensift account found here: "(?) Help -> About -> Command Line Tools"
 -l <prefix>    : (required) this is the prefix or license plate of the requested namespace.  Can be obtained from command: "oc3 get projects"
 -p <project>   : (required) arbitrary project name used for outputing labeling the exported folder/files
--d <boolean>   : (optional) turn of debug by passing in an integer 1-9 (default 0 = off)
+-d <boolean>   : (optional) turn on debug by passing in an integer 1-9 (default 0 = off)
+-s <boolean>   : (optional) have the descrete kubernetes manifest files sanitized by stripping out unnecesary entries (default 0 = off)
+-c <boolean>   : (optional) if 1 then overwrite then blindly overwrite the files. Will overwrite omnimanifest regardless of setting. Default is to preserve the files (default 0 = off)
 EOF
     exit 1
 }
 
-checkEnv() {
-    if [ -z "$OC3_TOKEN" ] || [ -z "$OC3_LICENSEPLATE" ] || [ -z "$PROJECT" ] || [ -z "$OC3_ENVIRONMENT" ]; then
+function checkEnv() {
+    if [[ -z $OC3_TOKEN ]] || [[ -z $OC3_LICENSEPLATE ]] || [[ -z $PROJECT ]] || [[ -z $OC3_ENVIRONMENT ]]; then
         usage
     else
         oc3_token="${OC3_TOKEN}"
         licenseplate="${OC3_LICENSEPLATE}"
         projectname="${PROJECT}"
         debug="${DEBUG}"
+        sanitize="${SANITIZE}"
+        clobber="${CLOBBER}"
         # This explodes the ENVIRONMENT string (passed in as an environment variable) into an array
         environments=(${OC3_ENVIRONMENT//,/ })
     fi
 }
 
-getParms() {
+function getParms() {
     debug=0
+    clobber=0
+    sanitize=0
     echo "### Obtain passed in paramaters ###"
     # There's an assumption that if one paramater is passed in that all are expected and no environment variables will be considered.
-    if [ -z "$1" ]; then
+    if [[ -z $1 ]]; then
         checkEnv
     else
-        while getopts ":t:l:p:d:e:" option; do
+        while getopts ":t:l:p:d:e:s:c:" option; do
             case ${option} in
                 t) oc3_token=$OPTARG;;
                 l) licenseplate=$OPTARG;;
                 p) projectname=$OPTARG;;
                 d) debug=$OPTARG;;
                 e) environments=$OPTARG;;
+                s) sanitize=$OPTARG;;
+                c) clobber=$OPTARG;;
                 *) usage;;
             esac
         done
@@ -75,7 +82,7 @@ getParms() {
 ocLogin() {
     echo "### Logging into Openshift 3 ###"
 
-    if [ ! -f "./oc3" ]; then
+    if [[ ! -f ./oc3 ]]; then
         # download the OpenShift CLI for openshift3 - since this is now a mounted volume, it'll only download to the workstation the first time.
         wget https://nttdata-canada.s3.ca-central-1.amazonaws.com/oc3
         chmod +rx ./oc3
@@ -91,12 +98,7 @@ ocLogin() {
     ./oc3 login https://console.pathfinder.gov.bc.ca:8443 --token=${oc3_token}
 }
 
-ocLogout() {
-    echo "### Logging out of Openshift 3 ###"
-    ./oc3 logout
-}
-
-processExport() {
+function processExport() {
     echo "### Export objects from Openshift 3 ###"
 
     environments=$1
@@ -125,15 +127,15 @@ processExport() {
     kubernetes_obj+=('routes')
     # Yes, we're exporting secrets.  This is being exported by the omnimanifest so the cat is already out of the bag.
     # *** DO NOT COMMIT THIS FILE TO GIT!!! ***
-    kubernetes_obj+=('secrets')
-    kubernetes_obj+=('serviceaccounts')
+    #kubernetes_obj+=('secrets')
+    #kubernetes_obj+=('serviceaccounts')
     kubernetes_obj+=('services')
     kubernetes_obj+=('statefulsets')
     kubernetes_obj+=('templates')
 
     for env in ${environments[@]}; do
         # TODO: we're making the directory before we know we have access to it.  Good idea to test access to the namespace before creating the directory
-        location=$projectname-$licenseplate/$env
+        location=exports/$projectname-$licenseplate/$env
         mkdir -p $location
 
         #Move into the correct namespace
@@ -150,13 +152,67 @@ processExport() {
             if [[ $debug > 0 ]]; then
                 echo "exporting $object"
             fi
-            ./oc3 get -o yaml $object > $location/$object.yaml
+
+            # only overwrite the files if we've been asked to clober the files.
+            if [[ $clobber > 0 ]]; then
+                # blindly create or overwrite the object file
+                ./oc3 get -o yaml $object > $location/$object.yaml
+            else
+                if [[ ! -f $location/$object.yaml ]]; then
+                    # create the object if it's not already there
+                    ./oc3 get -o yaml $object > $location/$object.yaml
+                else
+                    if [[ $debug > 0 ]]; then
+                        echo "$object already exists, NOT EXPORTING $location/$object.yaml"
+                    fi
+                fi
+            fi
+
+            # if we've been asked to sanitize, now is a good time to do it.
+            if [[ $sanitize > 0 ]]; then
+                sanitize $location/$object.yaml
+            fi
+
         done
 
-        # for each environment let's compare the omnimanifest to the category manifest files.
-        ./oc3-compare.py $location
+        #for each environment let's compare the omnimanifest to the category manifest files.
+        echo "### Run Compare"
+        ./oc3-compare.py $location $clobber
 
     done
+}
+
+function sanitize() {
+    # This removes all unnecessary elements from the manifest files and deletes the empty ones.
+    # Generally we like to do this for the migration or for storing the manifest files in git
+    dirfile=$1
+    echo "Sanitize $dirfile"
+
+    # add a sanitize folder in front of the filename that's passed in. This keeps things organized.
+    # use bash magic to extract the file name and folder name and inject the sanitize folder
+    sanitized_directory="${dirfile%/*}/sanitized"
+    if [ ! -d $sanitized_directory ]; then
+        mkdir $sanitized_directory
+    fi
+
+    sanitized_location="$sanitized_directory/${dirfile##*/}"
+
+    # strip out all the elements that aren't needed to be stored in the manifest (ie: cluster specific elements)
+    sed "/creationTimestamp/d; \
+        /resourceVersion/d; \
+        /selfLink/d;  \
+        /uid/d; \
+        /namespace/d; \
+        /status/d; \
+        /annotations/d;" \
+        $dirfile > $sanitized_location
+
+    # delete known useless multiline patterns. Note: this may result in an empty file.
+    sed -z -i 's/apiVersion: v1\nitems: \[\]\nkind: List\nmetadata:\n//g' $sanitized_location #> $sanitized_location
+
+    # now delete all the empty files that are left orphaned
+    find $sanitized_directory -size 0 -print -delete
+
 }
 
 #=======================================
@@ -165,9 +221,6 @@ processExport() {
 getParms "$@"
 ocLogin
 processExport $environments
-
-# Do we really need this since we'll just terminate the container?
-#ocLogout
 
 #=======================================
 exit 0
