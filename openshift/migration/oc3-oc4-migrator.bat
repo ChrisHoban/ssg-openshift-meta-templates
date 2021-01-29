@@ -26,10 +26,8 @@ oc3 project %oc3_ns%-tools
 REM #### Get the legacy main object backup (RAW) ####
 oc3 get -o yaml --export all > %oc3_projectname%-rawbackup.yaml
 
-oc3 get services --export > services
 
 REM #### Backup discrete kubernetes templates by object type ####
-clear pods --as-template=%oc3_projectname%-pods > %oc3_projectname%-pods.yaml
 oc3 export replicationcontrollers --as-template=%oc3_projectname%-replicationcontrollers > %oc3_projectname%-replicationcontrollers.yaml
 oc3 export services --as-template=%oc3_projectname%-services > %oc3_projectname%-services.yaml
 oc3 export deploymentconfigs --as-template=%oc3_projectname%-deploymentconfigs > %oc3_projectname%-deploymentconfigs.yaml
