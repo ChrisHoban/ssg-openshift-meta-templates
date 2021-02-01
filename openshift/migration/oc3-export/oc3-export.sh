@@ -110,28 +110,30 @@ function processExport() {
     kubernetes_obj+=('cronjobs')
     kubernetes_obj+=('deploymentconfigs')
     kubernetes_obj+=('deployments')
-    #kubernetes_obj+=('egressnetworkpolicies')
     kubernetes_obj+=('endpoints')
     kubernetes_obj+=('hpa')
-    kubernetes_obj+=('imagestreamtags')
     kubernetes_obj+=('imagestreams')
     kubernetes_obj+=('limitranges')
     kubernetes_obj+=('poddisruptionbudget')
-    kubernetes_obj+=('pods')
     kubernetes_obj+=('pvc')
     kubernetes_obj+=('replicasets')
     kubernetes_obj+=('replicationcontrollers')
-    kubernetes_obj+=('resourcequotas')
-    #kubernetes_obj+=('rolebindingrestrictions')
-    #kubernetes_obj+=('rolebindings')
     kubernetes_obj+=('routes')
+
     # Yes, we're exporting secrets.  This is being exported by the omnimanifest so the cat is already out of the bag.
     # *** DO NOT COMMIT THIS FILE TO GIT!!! ***
-    #kubernetes_obj+=('secrets')
-    #kubernetes_obj+=('serviceaccounts')
-    kubernetes_obj+=('services')
-    kubernetes_obj+=('statefulsets')
-    kubernetes_obj+=('templates')
+    ##kubernetes_obj+=('secrets')
+    ##kubernetes_obj+=('serviceaccounts')
+    # kubernetes_obj+=('services')
+    # kubernetes_obj+=('statefulsets')
+    # kubernetes_obj+=('templates')
+    ##kubernetes_obj+=('egressnetworkpolicies')
+    ##kubernetes_obj+=('imagestreamtags')
+    ##kubernetes_obj+=('pods')
+    ##kubernetes_obj+=('resourcequotas')
+    ##kubernetes_obj+=('rolebindingrestrictions')
+    ##kubernetes_obj+=('rolebindings')
+
 
     for env in ${environments[@]}; do
         # TODO: we're making the directory before we know we have access to it.  Good idea to test access to the namespace before creating the directory
@@ -145,7 +147,12 @@ function processExport() {
 
         # Yes, this will export secrets. I don't know a way around this yet.
         # *** DO NOT COMMIT THIS FILE TO GIT!!! ***
-        ./oc3 get -o yaml all > $location/all_objects.yaml
+        # export feature has been depticated, but still exists. The bash error handling need to bypass the oc3 warning
+        # set +e
+        # ./oc3 export $object --as-template=all > $location/all_objects.yaml
+        # set -e
+        # an alternate method is to use get but it's not sanitized...so will need to run the sanitize procedure if you use this method.
+        # ./oc3 get -o yaml all > $location/all_objects.yaml
 
         echo "Backup discrete kubernetes templates by object type"
         for object in ${kubernetes_obj[@]}; do
@@ -156,11 +163,20 @@ function processExport() {
             # only overwrite the files if we've been asked to clober the files.
             if [[ $clobber > 0 ]]; then
                 # blindly create or overwrite the object file
-                ./oc3 get -o yaml $object > $location/$object.yaml
+                # export feature has been depticated, but still exists. The bash error handling need to bypass the oc3 warning
+                set +e
+                ./oc3 export $object --as-template=$object > $location/$object.yaml
+                set -e
+                # an alternate method is to use get but it's not sanitized...so will need to run the sanitize procedure if you use this method.
+                # ./oc3 get -o yaml $object > $location/$object.yaml
             else
                 if [[ ! -f $location/$object.yaml ]]; then
                     # create the object if it's not already there
-                    ./oc3 get -o yaml $object > $location/$object.yaml
+                    # export feature has been depticated, but still exists. The bash error handling need to bypass the oc3 warning
+                    set +e
+                    ./oc3 export $object --as-template=$object > $location/$object.yaml
+                    set -e
+                    # ./oc3 get -o yaml $object > $location/$object.yaml
                 else
                     if [[ $debug > 0 ]]; then
                         echo "$object already exists, NOT EXPORTING $location/$object.yaml"
@@ -170,14 +186,18 @@ function processExport() {
 
             # if we've been asked to sanitize, now is a good time to do it.
             if [[ $sanitize > 0 ]]; then
-                sanitize $location/$object.yaml
+                if [[ -s $location/$object.yaml ]] ; then
+                    #sanitize file if it's greater than 0 in size
+                    echo "### Run Sanitize on $location/$object.yaml"
+                    ./oc3-sanitize.py $location $object.yaml
+                fi
             fi
 
         done
 
         #for each environment let's compare the omnimanifest to the category manifest files.
-        echo "### Run Compare"
-        ./oc3-compare.py $location $clobber
+        #echo "### Run Compare"
+        #./oc3-compare.py $location $clobber
 
     done
 }
@@ -204,8 +224,11 @@ function sanitize() {
         /uid/d; \
         /namespace/d; \
         /status/d; \
+        /openshift\.io\/generated\-by/d; \
         /annotations/d;" \
         $dirfile > $sanitized_location
+
+        # potential other keys to prune out
 
     # delete known useless multiline patterns. Note: this may result in an empty file.
     sed -z -i 's/apiVersion: v1\nitems: \[\]\nkind: List\nmetadata:\n//g' $sanitized_location #> $sanitized_location
