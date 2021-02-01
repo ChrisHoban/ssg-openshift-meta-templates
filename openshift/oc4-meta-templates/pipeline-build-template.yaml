@@ -1,0 +1,395 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: master-build-pipeline-oc4
+message: |-
+  A Jenkins server must be instantiated in this project to manage
+  the Pipeline BuildConfig created by this template.  You will be able to log in to
+  it using your OpenShift user credentials.
+metadata:
+  annotations:
+    openshift.io/display-name: Master Pipeline Template
+    description: |-
+      This is a template for OpenShift Jenkins Pipelines.
+    iconClass: icon-jenkins
+    tags: instant-app,jenkins
+  name: pipeline-build-template
+parameters:
+- displayName: Openshift Namespace License Plate (ex// pjztlm)
+  name: LICENSE_PLATE
+  required: true
+- displayName: Openshift Service Name (ex// efiling-api)
+  name: APP_NAME
+  required: true
+- displayName: Github URL (ex// https://github.com/bcgov/jag-file-submission)
+  name: GIT_URL
+  required: true
+- description: The exposed hostname that will route to the service, if left
+    blank a value will be defaulted.
+  displayName: Application Domain
+  name: appDomain
+  value:
+- name: routeType
+  description: The application route configuration value can be `private` for pathfinder.bcgov, `public` for pathfinder.gov.bc.ca, `none` if you don't want any.
+  displayName: Route type
+  value: private
+  required: true
+- name: gitPrivateSshKey
+  displayName: Git SSH Key
+  description: For private repo, the name of the secret with the ssh keys to authenticate
+  value:
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch.
+  displayName: Git Reference
+  name: gitRef
+  value: master
+  required: true
+- description: Set this to the relative path to your project, if emtpy defaulted to root of the repository
+  displayName: Context Directory
+  name: gitContextDir
+  value:
+- description: Github trigger secret.  A difficult to guess string encoded as part of the webhook URL.  Not encrypted.
+  displayName: GitHub Webhook Secret (Generated if empty)
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: gitSecret
+- description: The source image to compile or load this code into, IE dotnet:2.1, java:8
+  displayName: Source Image:Tag
+  required: true
+  name: sourceImage
+  value: dotnet:2.1
+- name: sourceImageNamespace
+  displayName: Source Image Namespace
+  description: The source image namespace defaulted to openshift
+  required: true
+  value: openshift
+- description: Lifecycle Webhook (IE Slack, RocketChat etc)
+  displayName: Lifecycle Webhook
+  name: lifecycleHook
+  value:
+
+# BuildConfig (High defaults, uses short running resource pool)
+- description: Build Config CPU Limit for builder pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Limit
+  required: true
+  name: bcCpuLimit
+  value: '4'
+- description: Build Config Memory Limit for builder pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: bcMemoryLimit
+  value: 4Gi
+- description: Build Config CPU Requested for builder pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Request
+  required: true
+  name: bcCpuRequest
+  value: '1'
+- description: Build Config Memory Requested for builder pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: bcMemoryRequest
+  value: 1Gi
+- description: Time Limit for the Builder in Seconds (Important to keep resource allocation/usage within the limited run pool)
+  displayName: Completion Deadline Seconds (1800 = 30 mins)
+  name: completionDeadlineSeconds
+  value: '1800'
+- description: The ID (name) of a running Node to use as a builder (Advanced)
+  displayName: Node Selector (ID)
+  name: nodeSelector
+  value: 'null'
+
+#deploymentconfig
+- description: Build Config CPU Limit for each deployed pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Limit
+  required: true
+  name: dcCpuLimit
+  value: 250m
+- description: Build Config Memory Limit for each deployed pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: dcMemoryLimit
+  value: 256Mi
+- description: Build Config CPU Requested for each deployed pod (eg 1 or 200m for 1 core or 200 millicores )
+  displayName: Build Config CPU Request
+  required: true
+  name: dcCpuRequest
+  value: 125m
+- description: Build Config Memory Requested for each deployed pod (eg 1Gi or 128Mi for 1 gigabyte or 128 megabytes)
+  displayName: Build Config Memory Limit
+  required: true
+  name: dcMemRequest
+  value: 128Mi
+
+#Pipeline Specific
+- description: Jenkins Pod Image Name
+  displayName: Jenkins Pod (IE nodejs, maven)
+  required: true
+  name: jenkinsPod
+  value: nodejs
+
+#sonarqube
+- description: SonarQube Stage Enabled?
+  displayName: Sonarqube Enabled
+  required: true
+  name: sonarEnabled
+  value: "false"
+- description: Sonarqube Instance URL
+  displayName: Sonarqube URL
+  name: sonarUrl
+  value: 'http://sonarqube:9000'
+- description: Sonarqube Analysis Command (For Jenkins Stage, will pull down code and run the command given (IE 'maven sonar:sonar'))
+  displayName: Sonarqube Command
+  name: sonarCommand
+  value:
+- description: Sonarqube Raw Token
+  displayName: Sonarqube Token
+  name: sonartoken
+  value: ''
+- description: The ID (name) of the SonarQube Token as stored in Jenkins Credential Store
+  displayName: Sonarqube Jenkins Credential ID
+  name: sonarJenkinsCredentialId
+  value:
+
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      application: ${APP_NAME}
+    name: ${APP_NAME}
+    namespace: "${LICENSE_PLATE}-tools"
+- kind: "BuildConfig"
+  apiVersion: build.openshift.io/v1
+  metadata:
+    labels:
+      application: ${APP_NAME}
+      template: ${APP_NAME}-pipeline-template
+    name: "${APP_NAME}-pipeline"
+    namespace: "${LICENSE_PLATE}-tools"
+  spec:
+    failedBuildsHistoryLimit: 5
+    nodeSelector: {}
+    output: {}
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      type: Git
+      git:
+        uri: ${GIT_URL}
+        ref: ${gitRef}
+      contextDir: ${gitContextDir}
+    triggers:
+    - type: "GitHub"
+      github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+    - type: "ConfigChange"
+    strategy:
+      jenkinsPipelineStrategy:
+        env:
+        - name: APP_NAME
+          value: ${APP_NAME}
+        - name: LIFECYCLE_WEBHOOK
+          value: ${lifecycleHook}
+        - name: GIT_SOURCE_URL
+          value: ${GIT_URL}
+        - name: GIT_SOURCE_REF
+          value: ${gitRef}
+        - name: GIT_CREDENTIALS_ID
+          value: ${gitSecret}
+        - name: GIT_CONTEXT_DIR
+          value: ${gitContextDir}
+        - name: CHECKOUT_SRC
+          value: ${gitCheckoutRequired}
+        - name: JENKINS_POD
+          value: ${jenkinsPod}
+        - name: SONAR_TOKEN
+          value: ${sonartoken}
+        - name: SONAR_CREDENTIAL_ID
+          value: ${sonarJenkinsCredentialId}
+        - name: SONAR_URL
+          value: ${sonarUrl}
+        - name: SONAR_COMMAND
+          value: ${sonarCommand}
+        - name: SONAR_ENABLED
+          value: ${sonarEnabled}
+        - name: TOOLS_NAMESPACE
+          value: "${LICENSE_PLATE}-tools"
+        - name: DEV_NAMESPACE
+          value: "${LICENSE_PLATE}-dev"
+        - name: TEST_NAMESPACE
+          value: "${LICENSE_PLATE}-test"
+        - name: PROD_NAMESPACE
+          value: "${LICENSE_PLATE}-prod"
+        - name: ROUTE_TYPE
+          value: "${routeType}"
+        jenkinsfile: |-
+          try {
+              node("${JENKINS_POD}") {
+
+                  parameters {
+                      string(name: 'git_tag', defaultValue: null)
+                  }
+
+                  // Git Tag
+                  stage ("Get GIT Tag if present") {
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              git url: "${GIT_URL}"
+                              env.git_tag = gitTagName()
+                              echo "${env.git_tag}"
+
+                          }
+                      }
+                  }
+                  // Build Image
+                  stage("Build ${APP_NAME}") {
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh 'oc start-build ${APP_NAME} -n ${TOOLS_NAMESPACE} --wait'
+                              if (env.git_tag != null) {
+                                  echo "${env.git_tag}"
+                                  sh "oc tag ${APP_NAME}:latest ${APP_NAME}:${env.git_tag}"
+                              }
+                          }
+                      }
+                  }
+                  // Tag Image for Dev
+                  stage('Promote to DEV') {
+                      openshift.withCluster() {
+                          openshift.withProject(){
+                              sh "echo Tagging image for DEV"
+                              sh 'oc tag ${APP_NAME}:latest ${APP_NAME}:dev'
+                          }
+                      }
+                  }
+                  stage("Deploy to DEV") {
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh 'echo Wait for Demo app to rollout completely.'
+                              sh 'oc rollout status -n ${DEV_NAMESPACE} dc/${APP_NAME} --watch'
+                          }
+                      }
+                  }
+
+                  // Tag Image for Test
+                  stage('Promote to TEST') {
+                      timeout(time: 10, unit: 'MINUTES') {
+                          script {
+                              input message: 'Promote application to Test?'
+                          }
+                      }
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh "echo Tagging image for TEST"
+                              sh 'oc tag ${APP_NAME}:latest ${APP_NAME}:test'
+                          }
+                      }
+                  }
+
+                  stage("Deploy to TEST") {
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh 'echo Wait for Demo app to rollout completely.'
+                              sh 'oc rollout status -n ${TEST_NAMESPACE} dc/${APP_NAME} --watch'
+                          }
+                      }
+                  }
+
+                  // Tag Image for Prod
+                  stage('Promote to PROD') {
+                      timeout(time: 10, unit: 'MINUTES') {
+                          script {
+                              input message: 'Promote application to Prod?'
+                          }
+                      }
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh "echo Tagging image for PROD"
+                              sh 'oc tag ${APP_NAME}:latest ${APP_NAME}:prod'
+                          }
+                      }
+                  }
+
+                  stage("Deploy to PROD") {
+                      openshift.withCluster() {
+                          openshift.withProject() {
+                              sh 'echo Wait for Demo app to rollout completely.'
+                              sh 'oc rollout status -n ${PROD_NAMESPACE} dc/${APP_NAME} --watch'
+                          }
+                      }
+                  }
+              }
+          } catch (err) {
+              echo "in catch block"
+              currentBuild.result = 'FAILURE'
+              env.ERR = "${err}"
+              node {
+                  sh "curl -XPOST '${LIFECYCLE_WEBHOOK}' -H 'Content-type: application/json' --data '{\"username\":\"The Pipe Lion\",\"icon_emoji\":\":lion_face:\",\"text\": \"${APP_NAME} Pipeline Failure - ${ERR}\"}'"
+              }
+              echo "Caught: ${err}"
+              throw err
+          }
+          /** @return The tag name, or `null` if the current commit isn't a tag.
+          */
+          String gitTagName() {
+              commit = getCommit()
+              if (commit) {
+                  desc = sh(script: "git describe --tags ${commit}", returnStdout: true)?.trim()
+                  if (isTag(desc)) {
+                      return desc
+                  }
+              }
+              return null
+          }
+          String getCommit() {
+              return sh(script: 'git rev-parse HEAD', returnStdout: true)?.trim()
+          }
+          @NonCPS
+          boolean isTag(String desc) {
+              match = desc =~ /.+-[0-9]+-g[0-9A-Fa-f]{6,}$/
+              result = !match
+              match = null // prevent serialisation
+              return result
+          }
+
+
+      type: JenkinsPipeline
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: Defines how to build the application
+    name: ${APP_NAME}
+    labels:
+      template: master-build-pipeline
+      app: ${APP_NAME}
+  spec:
+    nodeSelector: null
+    completionDeadlineSeconds: ${completionDeadlineSeconds}
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APP_NAME}:latest
+    resources:
+      limits:
+        cpu: ${bcCpuLimit}
+        memory: ${bcMemoryLimit}
+      requests:
+        cpu: ${bcCpuRequest}
+        memory: ${bcMemoryRequest}
+    source:
+      contextDir: ${gitContextDir}
+      git:
+        ref: ${gitRef}
+        uri: ${GIT_URL}
+      sourceSecret:
+        name: ${gitPrivateSshKey}
+      type: Git
+    strategy:
+      sourceStrategy:
+       from:
+         kind: ImageStreamTag
+         name: ${sourceImage}
+         namespace: ${sourceImageNamespace}
+      type: Source

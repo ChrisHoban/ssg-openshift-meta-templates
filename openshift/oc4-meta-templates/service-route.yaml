@@ -1,0 +1,66 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: meta-deployment-config-template
+parameters:
+- description: The name assigned to all of the frontend objects defined in this template.
+  displayName: Name
+  name: appName
+  required: true
+- description: This namespace (used in hostname)
+  displayName: Name
+  name: namespace
+  required: true
+- description: Suffix to use in route (used in hostname)
+  displayName: Route suffix
+  name: suffix
+  required: true
+  value: pathfinder.gov.bc.ca
+- description: The name of the port to be referenced by a route
+  displayName: Name
+  name: portName
+  required: true
+  value: web
+- description: The port used for external access
+  displayName: External Port
+  name: sourcePort
+  required: true
+  value: "80"
+- description: The port the internal running service exposes.
+  displayName: Internal Port
+  name: targetPort
+  required: true
+  value: "8080"
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+    name: ${appName}
+    labels:
+      app: ${appName}
+      template: meta-service
+  spec:
+    ports:
+      - name: ${portName}
+        port: ${{sourcePort}}
+        targetPort: ${{targetPort}}
+    selector:
+      deploymentconfig: ${appName}
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${appName}
+    labels:
+      template: master-build-pipeline
+      app: ${appName}
+  spec:
+    host: ${appName}-${namespace}.${suffix}
+    to:
+      kind: Service
+      name: ${appName}

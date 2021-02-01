@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: master-build-pipeline
+message: |-
+  This is a one time setup to allow normal network access between pods/kubernetes/internet for the start of a project.
+  Access will be locked down to minimum required as project progresses
+metadata:
+  annotations:
+    openshift.io/display-name: One Time Aporeto Setup
+    description: |-
+      This is a template for one time Aporeto Setup in one Namespace.
+    iconClass: icon-sso
+    tags: network-security-policies
+  name: network-security-policies
+parameters:
+- description: The OpenShift Namespace prefix where the ImageStreams reside.
+  displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
+  name: namespacePrefix
+  required: true
+  value:
+objects:
+- apiVersion: secops.pathfinder.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: intra-namespace-comms
+    labels:
+      app: tools
+  spec:
+    description: |
+      allow all pods in the namespace to talk amongst
+      themselves
+    source:
+      - - $namespace=${namespacePrefix}-tools
+    destination:
+      - - $namespace=${namespacePrefix}-dev
+      - - $namespace=${namespacePrefix}-test
+      - - $namespace=${namespacePrefix}-prod
+      - - $namespace=${namespacePrefix}-tools
+- apiVersion: secops.pathfinder.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: internal-comms
+    labels:
+      app: tools
+  spec:
+    description: |
+      allow all pods in the namespace to talk amongst
+      themselves
+    source:
+      - - $namespace=${namespacePrefix}-dev
+    destination:
+      - - $namespace=${namespacePrefix}-dev
+      - - $namespace=${namespacePrefix}-tools
+- apiVersion: secops.pathfinder.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: external-comms
+    labels:
+      app: tools
+  parameters:
+  - description: The OpenShift Namespace prefix for the project
+    displayName: Namespace Prefix (Prefix for each namespace ie prefix-tools, prefix-dev etc)
+    name: namespacePrefix
+    required: true
+  spec:
+    description: |
+      allow the internet to all pods in the namespace
+    source:
+      - - ext:network=any
+    destination:
+      - - $namespace=${namespacePrefix}-tools
