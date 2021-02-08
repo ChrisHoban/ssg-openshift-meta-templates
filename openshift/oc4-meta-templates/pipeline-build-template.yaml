@@ -67,6 +67,11 @@ parameters:
   displayName: Lifecycle Webhook
   name: lifecycleHook
   value:
+- description: Git tagging enabled?
+  displayName: Git Tagging Enabled
+  required: true
+  name: gitTagEnabled
+  value: "false"
 
 # BuildConfig (High defaults, uses short running resource pool)
 - description: Build Config CPU Limit for builder pod (eg 1 or 200m for 1 core or 200 millicores )
@@ -213,6 +218,8 @@ objects:
           value: ${sonarCommand}
         - name: SONAR_ENABLED
           value: ${sonarEnabled}
+        - name: GIT_TAG_ENABLED
+          value: ${gitTagEnabled}
         - name: TOOLS_NAMESPACE
           value: "${LICENSE_PLATE}-tools"
         - name: DEV_NAMESPACE
@@ -236,7 +243,12 @@ objects:
                       openshift.withCluster() {
                           openshift.withProject() {
                               git url: "${GIT_URL}"
-                              env.git_tag = gitTagName()
+                              if("${GIT_TAG_ENABLED}"!="false"){
+                                 env.git_tag = gitTagName()
+                              }else{
+                                 env.git_tag = "tagless"
+                              }
+
                               echo "${env.git_tag}"
 
                           }
