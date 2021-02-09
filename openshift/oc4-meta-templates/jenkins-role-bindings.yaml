@@ -1,0 +1,105 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: jenkins-role-bindings-oc4
+message: |-
+  When using a Jenkins Build Pipeline, this template will bless the following to enable your pipeline strategy:
+    * bless the dev/test/prod default user with image-puller access in Tools
+    * bless the tools Jenkins user with view access in dev/test/prod
+metadata:
+  annotations:
+    openshift.io/display-name: Jenkins Role Bindings
+    description: |-
+      This is a template for OpenShift Jenkins Pipelines.
+    iconClass: icon-jenkins
+    tags: instant-app,jenkins
+  name: jenkins-role-bindings
+parameters:
+- displayName: Openshift Namespace License Plate (ex// pjztlm)
+  name: LICENSE_PLATE
+  required: true
+
+objects:
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: jenkins_view
+    namespace: "${LICENSE_PLATE}-dev"
+  subjects:
+    - kind: ServiceAccount
+      name: jenkins
+      namespace: "${LICENSE_PLATE}-tools"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: jenkins_view
+    namespace: "${LICENSE_PLATE}-test"
+  subjects:
+    - kind: ServiceAccount
+      name: jenkins
+      namespace: "${LICENSE_PLATE}-tools"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: jenkins_view
+    namespace: "${LICENSE_PLATE}-prod"
+  subjects:
+    - kind: ServiceAccount
+      name: jenkins
+      namespace: "${LICENSE_PLATE}-tools"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: view
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: DEV-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-dev"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: DEV-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-test"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: DEV-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-test"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
