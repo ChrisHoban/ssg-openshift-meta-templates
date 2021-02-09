@@ -98,7 +98,7 @@ objects:
   subjects:
     - kind: ServiceAccount
       name: default
-      namespace: "${LICENSE_PLATE}-test"
+      namespace: "${LICENSE_PLATE}-prod"
   roleRef:
     apiGroup: rbac.authorization.k8s.io
     kind: ClusterRole
