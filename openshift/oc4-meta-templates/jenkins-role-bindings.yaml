@@ -79,7 +79,7 @@ objects:
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: RoleBinding
   metadata:
-    name: DEV-default-image-puller
+    name: TEST-default-image-puller
     namespace: "${LICENSE_PLATE}-tools"
   subjects:
     - kind: ServiceAccount
@@ -93,7 +93,7 @@ objects:
 - apiVersion: rbac.authorization.k8s.io/v1
   kind: RoleBinding
   metadata:
-    name: DEV-default-image-puller
+    name: PROD-default-image-puller
     namespace: "${LICENSE_PLATE}-tools"
   subjects:
     - kind: ServiceAccount
