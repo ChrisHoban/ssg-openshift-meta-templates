@@ -2,7 +2,7 @@
 
 OpenShift Meta Template is an effort to bootstrap in a full [openshift](https://www.openshift.com) build pipeline in the [BCGov](https://github.com/bcgov) space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created. Really handy in MicroService development.
 
-[![N|Solid](OpenShift-DevOps-Flow.png)](OpenShift-DevOps-Flow.png)
+[![N|Solid](OpenShift-DevOps-Flow.png)](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)
 
 Features includes:
 
@@ -29,8 +29,8 @@ paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta
 * Click Instantiate Template
 * Fill in the licenseplate for the project, it should create 6 Rolebindings, 3 in tools and 1 each in dev/test/prod
 
-#### If you're building a Dotnet application, deploy the appropriate Jenkins slave:
-- [dotnet core](openshift/meta-templates/build-slaves/dotnet-slave.yaml)
+### If you're building a Dotnet application, deploy the appropriate Jenkins slave:
+- [dotnet core](openshift/oc4-meta-templates/build-slaves/dotnet-slave.yaml)
 
 
 ### Add the Master Pipeline Template to your tools namespace
