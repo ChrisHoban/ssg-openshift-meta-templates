@@ -242,7 +242,7 @@ objects:
                   stage ("Get GIT Tag if present") {
                       openshift.withCluster() {
                           openshift.withProject() {
-                              git url: "${GIT_URL}"
+                              git url: "${GIT_SOURCE_URL}"
                               if("${GIT_TAG_ENABLED}"!="false"){
                                  env.git_tag = gitTagName()
                               }else{

@@ -29,8 +29,8 @@ paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta
 * Click Instantiate Template
 * Fill in the licenseplate for the project, it should create 6 Rolebindings, 3 in tools and 1 each in dev/test/prod
 
-### If you're building a Dotnet application, deploy the appropriate Jenkins slave:
-- [dotnet core](openshift/oc4-meta-templates/build-slaves/dotnet-slave.yaml)
+### If you need a special build slave, (such as a .NET slave with Sonarqube binaries) deploy the appropriate Jenkins slave:
+- [Build Slaves](openshift/oc4-meta-templates/build-slaves/)
 
 
 ### Add the Master Pipeline Template to your tools namespace

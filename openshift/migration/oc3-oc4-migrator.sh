@@ -15,16 +15,16 @@ export PATH=$PATH:~c:/oc4/
 kubernetes_obj=()
 kubernetes_obj+=('buildconfigs')
 kubernetes_obj+=('imagestreams')
-kubernetes_obj+=('services')
+#kubernetes_obj+=('services')
 kubernetes_obj+=('cm')
 kubernetes_obj+=('secrets')
-kubernetes_obj+=('deploymentconfigs')
+#kubernetes_obj+=('deploymentconfigs')
+#kubernetes_obj+=('endpoints')
 #kubernetes_obj+=('egressnetworkpolicies')
 #kubernetes_obj+=('statefulsets')
 #kubernetes_obj+=('cronjobs')
 #kubernetes_obj+=('serviceaccounts')
 #kubernetes_obj+=('rolebindings')
-#kubernetes_obj+=('endpoints')
 #kubernetes_obj+=('replicationcontrollers')
 #kubernetes_obj+=('builds')
 #kubernetes_obj+=('imagestreamtags')
@@ -41,9 +41,10 @@ kubernetes_obj+=('deploymentconfigs')
 
 
 environments=()
-environments+=('dev')
-environments+=('test')
-environments+=('prod')
+environments+=('tools')
+#environments+=('dev')
+#environments+=('test')
+#environments+=('prod')
 
 
 echo #### Just in case you have an oc4 session ####
@@ -89,7 +90,7 @@ for d in ${environments[@]}; do
   echo ##### Move to Openshift 3 ${d} Export Directory #####
 
   oc4 project ${oc4_ns}-${d}
-
+  echo ##### IMPORT TO OC4: ${oc4_ns}-${d}  #####
 
   echo ### Import Tools First ###
   cd ${oc3_projectname}-${d}
