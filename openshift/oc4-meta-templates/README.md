@@ -18,8 +18,7 @@ Deploy a jenkins server using `BC Gov Pathfinder Jenkins (Persistent)` image fro
 
 * After deploying be sure to edit the jenkins deployment config and adjust the volume mounts as per the [directions in BC Developer Hub] (https://developer.gov.bc.ca/Migrating-Your-BC-Gov-Jenkins-to-the-Cloud)
 
-
-### ADD THE REQUIRED ROLE Bindings
+### Adding The Required Role Bindings
 Click import YAML (Plus Icon in top right) in openshift tools namespace
 
 paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/master/openshift/oc4-meta-templates/jenkins-role-bindings.yaml) of /openshift/oc4-meta-templates/pipeline-build-template.yaml
@@ -30,8 +29,7 @@ paste [contents](https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta
 * Click Instantiate Template
 * Fill in the licenseplate for the project, it should create 6 Rolebindings, 3 in tools and 1 each in dev/test/prod
 
-
-### If you're building a Dotnet application, deploy the appropriate Jenkins slave:
+#### If you're building a Dotnet application, deploy the appropriate Jenkins slave:
 - [dotnet core](openshift/meta-templates/build-slaves/dotnet-slave.yaml)
 
 
