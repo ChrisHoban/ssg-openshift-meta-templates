@@ -2,7 +2,7 @@
 
 OpenShift Meta Template is an effort to bootstrap in a full [openshift](https://www.openshift.com) build pipeline in the [BCGov](https://github.com/bcgov) space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created. Really handy in MicroService development.
 
-[![N|Solid](OpenShift-DevOps-Flow.png)](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)
+[![N|Solid](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)
 
 Features includes:
 
@@ -16,7 +16,7 @@ Features includes:
 ### Installing Jenkins
 Deploy a jenkins server using `BC Gov Pathfinder Jenkins (Persistent)` image from the service catalog.
 
-* After deploying be sure to edit the jenkins deployment config and adjust the volume mounts as per the [directions in BC Developer Hub] (https://developer.gov.bc.ca/Migrating-Your-BC-Gov-Jenkins-to-the-Cloud)
+* After deploying be sure to edit the jenkins deployment config and adjust the volume mounts as per the [directions in BC Developer Hub](https://developer.gov.bc.ca/Migrating-Your-BC-Gov-Jenkins-to-the-Cloud)
 
 ### Adding The Required Role Bindings
 Click import YAML (Plus Icon in top right) in openshift tools namespace
