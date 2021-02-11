@@ -1,8 +1,8 @@
 # OpenShift Meta Template
 
-OpenShift Meta Template is an effort to bootstrap in a full [openshift](https://www.openshift.com) build pipeline in the [BCGov](https://github.com/bcgov) space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created. Really handy in MicroService development.
+OpenShift Meta Template is an effort to bootstrap in a full [openshift](https://www.openshift.com) build pipeline in the [BCGov](https://github.com/bcgov) space with minimal upfront effort. The idea is being able to configure everything upfront and have what you need get spun up and created quickly. Really handy in MicroService development.
 
-[![N|Solid](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)](openshift/oc4-meta-templates/OpenShift-DevOps-Flow.png)
+[![N|Solid](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/OpenShift-DevOps-Flow.png)](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/OpenShift-DevOps-Flow.png)
 
 Features includes:
 
