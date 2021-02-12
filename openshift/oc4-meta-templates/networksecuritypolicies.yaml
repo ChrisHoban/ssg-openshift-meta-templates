@@ -1,0 +1,213 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: nttdata-project-init-oc4
+message: |-
+  This template will bless the following to init a basic NTT project with the following strategy:
+    * bless the dev/test/prod default user with image-puller access in Tools
+    * bless the Network Security Policies to allow egress, inter-project communication with tools and communications
+metadata:
+  annotations:
+    openshift.io/display-name: NTTData Project Init
+    description: |-
+      This is a template to init common compnents for all NTTData projects into OpenShift 4.
+    iconClass: icon-openshift
+    tags: instant-app,nttdata
+  name: nttdata-project-init
+parameters:
+- displayName: Openshift Namespace License Plate (ex// pjztlm)
+  name: LICENSE_PLATE
+  required: true
+
+objects:
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: DEV-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-dev"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: TEST-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-test"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: PROD-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-prod"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: egress-policy
+    namespace: ${LICENSE_PLATE}-tools
+  spec:
+    description: allow ${LICENSE_PLATE}-tools namespace to talk to the internet.
+    destination:
+      - - 'ext:network=any'
+    source:
+      - - $namespace=${LICENSE_PLATE}-tools
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: egress-policy
+    namespace: ${LICENSE_PLATE}-dev
+  spec:
+    description: allow ${LICENSE_PLATE}-dev namespace to talk to the internet.
+    destination:
+      - - 'ext:network=any'
+    source:
+      - - $namespace=${LICENSE_PLATE}-dev
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: egress-policy
+    namespace: ${LICENSE_PLATE}-test
+  spec:
+    description: allow ${LICENSE_PLATE}-test namespace to talk to the internet.
+    destination:
+      - - 'ext:network=any'
+    source:
+      - - $namespace=${LICENSE_PLATE}-test
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: egress-policy
+    namespace: ${LICENSE_PLATE}-prod
+  spec:
+    description: allow ${LICENSE_PLATE}-prod namespace to talk to the internet.
+    destination:
+      - - 'ext:network=any'
+    source:
+      - - $namespace=${LICENSE_PLATE}-prod
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: int-cluster-k8s-api-comms
+    namespace: ${LICENSE_PLATE}-tools
+  spec:
+    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
+    destination:
+      - - 'int:network=internal-cluster-api-endpoint'
+    source:
+      - - $namespace=${LICENSE_PLATE}-tools
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: int-cluster-k8s-api-comms
+    namespace: ${LICENSE_PLATE}-dev
+  spec:
+    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
+    destination:
+      - - 'int:network=internal-cluster-api-endpoint'
+    source:
+      - - $namespace=${LICENSE_PLATE}-dev
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: int-cluster-k8s-api-comms
+    namespace: ${LICENSE_PLATE}-test
+  spec:
+    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
+    destination:
+      - - 'int:network=internal-cluster-api-endpoint'
+    source:
+      - - $namespace=${LICENSE_PLATE}-test
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: int-cluster-k8s-api-comms
+    namespace: ${LICENSE_PLATE}-prod
+  spec:
+    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
+    destination:
+      - - 'int:network=internal-cluster-api-endpoint'
+    source:
+      - - $namespace=${LICENSE_PLATE}-prod
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: intra-namespace-comms
+    namespace: ${LICENSE_PLATE}-tools
+  spec:
+    description: allow ${LICENSE_PLATE}-tools namespace to talk to itself and the rest of the project namespaces
+    destination:
+      - - $namespace=${LICENSE_PLATE}-tools
+      - - $namespace=${LICENSE_PLATE}-dev
+      - - $namespace=${LICENSE_PLATE}-test
+      - - $namespace=${LICENSE_PLATE}-prod
+    source:
+      - - $namespace=${LICENSE_PLATE}-tools
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: intra-namespace-comms
+    namespace: ${LICENSE_PLATE}-dev
+  spec:
+    description: allow ${LICENSE_PLATE}-dev namespace to talk to itself and tools
+    destination:
+      - - $namespace=${LICENSE_PLATE}-tools
+      - - $namespace=${LICENSE_PLATE}-dev
+    source:
+      - - $namespace=${LICENSE_PLATE}-dev
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: intra-namespace-comms
+    namespace: ${LICENSE_PLATE}-tools
+  spec:
+    description: allow ${LICENSE_PLATE}-test namespace to talk to itself and tools
+    destination:
+      - - $namespace=${LICENSE_PLATE}-tools
+      - - $namespace=${LICENSE_PLATE}-test
+    source:
+      - - $namespace=${LICENSE_PLATE}-test
+
+- apiVersion: security.devops.gov.bc.ca/v1alpha1
+  kind: NetworkSecurityPolicy
+  metadata:
+    name: intra-namespace-comms
+    namespace: ${LICENSE_PLATE}-tools
+  spec:
+    description: allow ${LICENSE_PLATE}-prod namespace to talk to itself and tools
+    destination:
+      - - $namespace=${LICENSE_PLATE}-tools
+      - - $namespace=${LICENSE_PLATE}-prod
+    source:
+      - - $namespace=${LICENSE_PLATE}-prod
