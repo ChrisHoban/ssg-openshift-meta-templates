@@ -189,7 +189,7 @@ objects:
   kind: NetworkSecurityPolicy
   metadata:
     name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-tools
+    namespace: ${LICENSE_PLATE}-test
   spec:
     description: allow ${LICENSE_PLATE}-test namespace to talk to itself and tools
     destination:
@@ -202,7 +202,7 @@ objects:
   kind: NetworkSecurityPolicy
   metadata:
     name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-tools
+    namespace: ${LICENSE_PLATE}-prod
   spec:
     description: allow ${LICENSE_PLATE}-prod namespace to talk to itself and tools
     destination:
