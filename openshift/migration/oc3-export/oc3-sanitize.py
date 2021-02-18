@@ -38,6 +38,14 @@ for delitem in sorted(itemsToDelete, reverse=True):
     print("Deleting Offending Objects")
     del dataDict["objects"][delitem]
 
+# Delete creationTimestamps
+del dataDict["metadata"]["creationTimestamp"]
+
+# Delete creationTimestamps and status from objects
+for items in dataDict["objects"]:
+    del items["metadata"]["creationTimestamp"]
+    del items["status"]
+
 # save the sanitized file:
 savefolder = workingfolder+"/sanitized"
 savelocation = savefolder+"/"+workingfile
