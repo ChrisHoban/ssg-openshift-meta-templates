@@ -5,7 +5,10 @@ labels:
 message: |-
   This template will bless the following to init a basic NTT project with the following strategy:
     * bless the dev/test/prod default user with image-puller access in Tools
-    * bless the Network Security Policies to allow egress, inter-project communication with tools and communications
+    * Fully opens the soon to be obsoleve NetworkSecurityPolicies (Patroni)
+    * bless the Network Policies to allow egress, inter-project communication with tools as well as internal namespace pod comms.
+  To run this template (replace LICENSE_PLACE with your desired ID):
+  $ oc process -f nttdata-project-init.yaml -p LICENSE_PLATE=123456 | oc apply -f -
 metadata:
   annotations:
     openshift.io/display-name: NTTData Project Init
@@ -14,199 +17,317 @@ metadata:
     tags: instant-app,nttdata
   name: nttdata-project-init
 parameters:
-- displayName: Openshift Namespace License Plate (ex// pjztlm)
-  name: LICENSE_PLATE
-  required: true
+  - displayName: Openshift Namespace License Plate (ex// pjztlm)
+    name: LICENSE_PLATE
+    required: true
 
 objects:
-- apiVersion: rbac.authorization.k8s.io/v1
-  kind: RoleBinding
-  metadata:
-    name: DEV-default-image-puller
-    namespace: "${LICENSE_PLATE}-tools"
-  subjects:
-    - kind: ServiceAccount
-      name: default
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: DEV-default-image-puller
+      namespace: "${LICENSE_PLATE}-tools"
+    subjects:
+      - kind: ServiceAccount
+        name: default
+        namespace: "${LICENSE_PLATE}-dev"
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: 'system:image-puller'
+
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: TEST-default-image-puller
+      namespace: "${LICENSE_PLATE}-tools"
+    subjects:
+      - kind: ServiceAccount
+        name: default
+        namespace: "${LICENSE_PLATE}-test"
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: 'system:image-puller'
+
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: PROD-default-image-puller
+      namespace: "${LICENSE_PLATE}-tools"
+    subjects:
+      - kind: ServiceAccount
+        name: default
+        namespace: "${LICENSE_PLATE}-prod"
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: 'system:image-puller'
+
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: deny-by-default
       namespace: "${LICENSE_PLATE}-dev"
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: 'system:image-puller'
-
-- apiVersion: rbac.authorization.k8s.io/v1
-  kind: RoleBinding
-  metadata:
-    name: TEST-default-image-puller
-    namespace: "${LICENSE_PLATE}-tools"
-  subjects:
-    - kind: ServiceAccount
-      name: default
+    spec:
+      podSelector: {}
+      ingress: []
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-from-openshift-ingress
+      namespace: "${LICENSE_PLATE}-dev"
+    spec:
+      # This policy allows any pod with a route & service combination
+      # to accept traffic from the OpenShift router pods. This is
+      # required for things outside of OpenShift (like the Internet)
+      # to reach the pods.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-all-internal
+      namespace: "${LICENSE_PLATE}-dev"
+    spec:
+      # Allow all pods within the dev namespace to communicate with one another.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  environment: dev
+                  name: ${LICENSE_PLATE}
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-any
+      namespace: "${LICENSE_PLATE}-dev"
+    spec:
+      description: |
+        allow all pods to communicate
+      source:
+        - - "$namespace=${LICENSE_PLATE}-dev"
+      destination:
+        - - "$namespace=*"
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-external
       namespace: "${LICENSE_PLATE}-test"
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: 'system:image-puller'
+    spec:
+      description: |
+        Allow all pods to talk to external systems
+      source:
+        - - "$namespace=${LICENSE_PLATE}-dev"
+      destination:
+        - - "ext:network=any"
 
-- apiVersion: rbac.authorization.k8s.io/v1
-  kind: RoleBinding
-  metadata:
-    name: PROD-default-image-puller
-    namespace: "${LICENSE_PLATE}-tools"
-  subjects:
-    - kind: ServiceAccount
-      name: default
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: deny-by-default
+      namespace: "${LICENSE_PLATE}-test"
+    spec:
+      podSelector: {}
+      ingress: []
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-from-openshift-ingress
+      namespace: "${LICENSE_PLATE}-test"
+    spec:
+      # This policy allows any pod with a route & service combination
+      # to accept traffic from the OpenShift router pods. This is
+      # required for things outside of OpenShift (like the Internet)
+      # to reach the pods.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-all-internal
+      namespace: "${LICENSE_PLATE}-test"
+    spec:
+      # Allow all pods within the test namespace to communicate with one another.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  environment: test
+                  name: ${LICENSE_PLATE}
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-any
+      namespace: "${LICENSE_PLATE}-test"
+    spec:
+      description: |
+        allow all pods to communicate
+      source:
+        - - "$namespace=${LICENSE_PLATE}-test"
+      destination:
+        - - "$namespace=*"
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-external
+      namespace: "${LICENSE_PLATE}-test"
+    spec:
+      description: |
+        Allow all pods to talk to external systems
+      source:
+        - - "$namespace=${LICENSE_PLATE}-test"
+      destination:
+        - - "ext:network=any"
+
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: deny-by-default
       namespace: "${LICENSE_PLATE}-prod"
-  roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: 'system:image-puller'
+    spec:
+      podSelector: {}
+      ingress: []
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-from-openshift-ingress
+      namespace: "${LICENSE_PLATE}-prod"
+    spec:
+      # This policy allows any pod with a route & service combination
+      # to accept traffic from the OpenShift router pods. This is
+      # required for things outside of OpenShift (like the Internet)
+      # to reach the pods.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-all-internal
+      namespace: "${LICENSE_PLATE}-prod"
+    spec:
+      # Allow all pods within the dev namespace to communicate with one another.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  environment: prod
+                  name: ${LICENSE_PLATE}
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-any
+      namespace: "${LICENSE_PLATE}-prod"
+    spec:
+      description: |
+        allow all pods to communicate
+      source:
+        - - "$namespace=${LICENSE_PLATE}-prod"
+      destination:
+        - - "$namespace=*"
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-external
+      namespace: "${LICENSE_PLATE}-prod"
+    spec:
+      description: |
+        Allow all pods to talk to external systems
+      source:
+        - - "$namespace=${LICENSE_PLATE}-prod"
+      destination:
+        - - "ext:network=any"
 
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: egress-policy
-    namespace: ${LICENSE_PLATE}-tools
-  spec:
-    description: allow ${LICENSE_PLATE}-tools namespace to talk to the internet.
-    destination:
-      - - 'ext:network=any'
-    source:
-      - - $namespace=${LICENSE_PLATE}-tools
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: egress-policy
-    namespace: ${LICENSE_PLATE}-dev
-  spec:
-    description: allow ${LICENSE_PLATE}-dev namespace to talk to the internet.
-    destination:
-      - - 'ext:network=any'
-    source:
-      - - $namespace=${LICENSE_PLATE}-dev
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: egress-policy
-    namespace: ${LICENSE_PLATE}-test
-  spec:
-    description: allow ${LICENSE_PLATE}-test namespace to talk to the internet.
-    destination:
-      - - 'ext:network=any'
-    source:
-      - - $namespace=${LICENSE_PLATE}-test
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: egress-policy
-    namespace: ${LICENSE_PLATE}-prod
-  spec:
-    description: allow ${LICENSE_PLATE}-prod namespace to talk to the internet.
-    destination:
-      - - 'ext:network=any'
-    source:
-      - - $namespace=${LICENSE_PLATE}-prod
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: int-cluster-k8s-api-comms
-    namespace: ${LICENSE_PLATE}-tools
-  spec:
-    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
-    destination:
-      - - 'int:network=internal-cluster-api-endpoint'
-    source:
-      - - $namespace=${LICENSE_PLATE}-tools
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: int-cluster-k8s-api-comms
-    namespace: ${LICENSE_PLATE}-dev
-  spec:
-    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
-    destination:
-      - - 'int:network=internal-cluster-api-endpoint'
-    source:
-      - - $namespace=${LICENSE_PLATE}-dev
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: int-cluster-k8s-api-comms
-    namespace: ${LICENSE_PLATE}-test
-  spec:
-    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
-    destination:
-      - - 'int:network=internal-cluster-api-endpoint'
-    source:
-      - - $namespace=${LICENSE_PLATE}-test
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: int-cluster-k8s-api-comms
-    namespace: ${LICENSE_PLATE}-prod
-  spec:
-    description: allow ${LICENSE_PLATE}-tools pods to talk to each other
-    destination:
-      - - 'int:network=internal-cluster-api-endpoint'
-    source:
-      - - $namespace=${LICENSE_PLATE}-prod
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-tools
-  spec:
-    description: allow ${LICENSE_PLATE}-tools namespace to talk to itself and the rest of the project namespaces
-    destination:
-      - - $namespace=${LICENSE_PLATE}-tools
-      - - $namespace=${LICENSE_PLATE}-dev
-      - - $namespace=${LICENSE_PLATE}-test
-      - - $namespace=${LICENSE_PLATE}-prod
-    source:
-      - - $namespace=${LICENSE_PLATE}-tools
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-dev
-  spec:
-    description: allow ${LICENSE_PLATE}-dev namespace to talk to itself and tools
-    destination:
-      - - $namespace=${LICENSE_PLATE}-tools
-      - - $namespace=${LICENSE_PLATE}-dev
-    source:
-      - - $namespace=${LICENSE_PLATE}-dev
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-test
-  spec:
-    description: allow ${LICENSE_PLATE}-test namespace to talk to itself and tools
-    destination:
-      - - $namespace=${LICENSE_PLATE}-tools
-      - - $namespace=${LICENSE_PLATE}-test
-    source:
-      - - $namespace=${LICENSE_PLATE}-test
-
-- apiVersion: security.devops.gov.bc.ca/v1alpha1
-  kind: NetworkSecurityPolicy
-  metadata:
-    name: intra-namespace-comms
-    namespace: ${LICENSE_PLATE}-prod
-  spec:
-    description: allow ${LICENSE_PLATE}-prod namespace to talk to itself and tools
-    destination:
-      - - $namespace=${LICENSE_PLATE}-tools
-      - - $namespace=${LICENSE_PLATE}-prod
-    source:
-      - - $namespace=${LICENSE_PLATE}-prod
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: deny-by-default
+      namespace: "${LICENSE_PLATE}-tools"
+    spec:
+      podSelector: {}
+      ingress: []
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-from-openshift-ingress
+      namespace: "${LICENSE_PLATE}-tools"
+    spec:
+      # This policy allows any pod with a route & service combination
+      # to accept traffic from the OpenShift router pods. This is
+      # required for things outside of OpenShift (like the Internet)
+      # to reach the pods.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  network.openshift.io/policy-group: ingress
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: networking.k8s.io/v1
+    kind: NetworkPolicy
+    metadata:
+      name: allow-all-internal
+      namespace: "${LICENSE_PLATE}-tools"
+    spec:
+      # Allow all pods within the dev namespace to communicate with one another.
+      ingress:
+        - from:
+            - namespaceSelector:
+                matchLabels:
+                  environment: prod
+                  name: ${LICENSE_PLATE}
+      podSelector: {}
+      policyTypes:
+        - Ingress
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-any
+      namespace: "${LICENSE_PLATE}-prod"
+    spec:
+      description: |
+        allow all pods to communicate
+      source:
+        - - "$namespace=${LICENSE_PLATE}-tools"
+      destination:
+        - - "$namespace=*"
+  - apiVersion: security.devops.gov.bc.ca/v1alpha1
+    kind: NetworkSecurityPolicy
+    metadata:
+      name: any-to-external
+      namespace: "${LICENSE_PLATE}-tools"
+    spec:
+      description: |
+        Allow all pods to talk to external systems
+      source:
+        - - "$namespace=${LICENSE_PLATE}-tools"
+      destination:
+        - - "ext:network=any"
