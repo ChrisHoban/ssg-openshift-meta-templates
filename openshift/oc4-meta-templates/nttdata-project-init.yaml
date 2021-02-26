@@ -122,7 +122,7 @@ objects:
     kind: NetworkSecurityPolicy
     metadata:
       name: any-to-external
-      namespace: "${LICENSE_PLATE}-test"
+      namespace: "${LICENSE_PLATE}-dev"
     spec:
       description: |
         Allow all pods to talk to external systems
