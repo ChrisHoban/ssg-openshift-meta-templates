@@ -302,7 +302,7 @@ objects:
         - from:
             - namespaceSelector:
                 matchLabels:
-                  environment: prod
+                  environment: tools
                   name: ${LICENSE_PLATE}
       podSelector: {}
       policyTypes:
@@ -311,7 +311,7 @@ objects:
     kind: NetworkSecurityPolicy
     metadata:
       name: any-to-any
-      namespace: "${LICENSE_PLATE}-prod"
+      namespace: "${LICENSE_PLATE}-tools"
     spec:
       description: |
         allow all pods to communicate
