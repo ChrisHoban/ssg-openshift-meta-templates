@@ -5,7 +5,6 @@ labels:
 message: |-
   This template will bless the following to init a basic NTT project with the following strategy:
     * bless the dev/test/prod default user with image-puller access in Tools
-    * Fully opens the soon to be obsoleve NetworkSecurityPolicies (Patroni)
     * bless the Network Policies to allow egress, inter-project communication with tools as well as internal namespace pod comms.
   To run this template (replace LICENSE_PLACE with your desired ID):
   $ oc process -f nttdata-project-init.yaml -p LICENSE_PLATE=123456 | oc apply -f -
@@ -106,30 +105,6 @@ objects:
       podSelector: {}
       policyTypes:
         - Ingress
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-any
-      namespace: "${LICENSE_PLATE}-dev"
-    spec:
-      description: |
-        allow all pods to communicate
-      source:
-        - - "$namespace=${LICENSE_PLATE}-dev"
-      destination:
-        - - "$namespace=*"
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-external
-      namespace: "${LICENSE_PLATE}-dev"
-    spec:
-      description: |
-        Allow all pods to talk to external systems
-      source:
-        - - "$namespace=${LICENSE_PLATE}-dev"
-      destination:
-        - - "ext:network=any"
 
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
@@ -173,30 +148,6 @@ objects:
       podSelector: {}
       policyTypes:
         - Ingress
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-any
-      namespace: "${LICENSE_PLATE}-test"
-    spec:
-      description: |
-        allow all pods to communicate
-      source:
-        - - "$namespace=${LICENSE_PLATE}-test"
-      destination:
-        - - "$namespace=*"
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-external
-      namespace: "${LICENSE_PLATE}-test"
-    spec:
-      description: |
-        Allow all pods to talk to external systems
-      source:
-        - - "$namespace=${LICENSE_PLATE}-test"
-      destination:
-        - - "ext:network=any"
 
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
@@ -240,30 +191,6 @@ objects:
       podSelector: {}
       policyTypes:
         - Ingress
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-any
-      namespace: "${LICENSE_PLATE}-prod"
-    spec:
-      description: |
-        allow all pods to communicate
-      source:
-        - - "$namespace=${LICENSE_PLATE}-prod"
-      destination:
-        - - "$namespace=*"
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-external
-      namespace: "${LICENSE_PLATE}-prod"
-    spec:
-      description: |
-        Allow all pods to talk to external systems
-      source:
-        - - "$namespace=${LICENSE_PLATE}-prod"
-      destination:
-        - - "ext:network=any"
 
   - apiVersion: networking.k8s.io/v1
     kind: NetworkPolicy
@@ -307,27 +234,3 @@ objects:
       podSelector: {}
       policyTypes:
         - Ingress
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-any
-      namespace: "${LICENSE_PLATE}-tools"
-    spec:
-      description: |
-        allow all pods to communicate
-      source:
-        - - "$namespace=${LICENSE_PLATE}-tools"
-      destination:
-        - - "$namespace=*"
-  - apiVersion: security.devops.gov.bc.ca/v1alpha1
-    kind: NetworkSecurityPolicy
-    metadata:
-      name: any-to-external
-      namespace: "${LICENSE_PLATE}-tools"
-    spec:
-      description: |
-        Allow all pods to talk to external systems
-      source:
-        - - "$namespace=${LICENSE_PLATE}-tools"
-      destination:
-        - - "ext:network=any"
