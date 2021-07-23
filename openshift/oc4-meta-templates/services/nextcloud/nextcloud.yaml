@@ -322,3 +322,65 @@ objects:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    name: nextcloud-cron
+  spec:
+    concurrencyPolicy: Replace
+    jobTemplate:
+      spec:
+        activeDeadlineSeconds: 3600
+        template:
+          spec:
+            containers:
+            - args:
+              - php
+              - -f
+              - /var/www/html/cron.php
+              env:
+              - name: NEXTCLOUD_UPDATE
+                value: "1"
+              - name: NC_dbhost
+                value: mariadb
+              - name: NC_dbuser
+                valueFrom:
+                  secretKeyRef:
+                    key: database-user
+                    name: mariadb
+              - name: NC_dbpassword
+                valueFrom:
+                  secretKeyRef:
+                    key: database-password
+                    name: mariadb
+              - name: NC_dbname
+                value: nextcloud
+              image: my-nextcloud:latest
+              imagePullPolicy: Always
+              name: nextcloud-cron
+              resources: {}
+              terminationMessagePath: /dev/termination-log
+              volumeMounts:
+              - mountPath: /var/www/html
+                name: nextcloud-source
+              - mountPath: /var/nc/data
+                name: nextcloud-data
+                subPath: data
+              - mountPath: /var/nc/config
+                name: nextcloud-data
+                subPath: config
+              - mountPath: /var/nc/custom_apps
+                name: nextcloud-data
+                subPath: apps
+            dnsPolicy: ClusterFirst
+            restartPolicy: Never
+            securityContext: {}
+            terminationGracePeriodSeconds: 30
+            volumes:
+            - name: nextcloud-source
+              emptyDir: {}
+            - name: nextcloud-data
+              persistentVolumeClaim:
+                claimName: nextcloud-data
+    schedule: '*/15 * * * *'
+    suspend: false
