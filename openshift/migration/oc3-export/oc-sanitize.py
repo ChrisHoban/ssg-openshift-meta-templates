@@ -2,7 +2,7 @@
 
 ####
 #
-#   Used to sanitize the exported kubernetes template to strip out undesired elements
+#   Used to sanitize the exported kubernetes template or object to strip out undesired elements
 #
 ####
 
@@ -27,16 +27,38 @@ with open(location, 'r') as filestream:
 offenders = ["maven","nexus","sonarqube", "jenkins-2-rhel7"]
 i=0
 itemsToDelete = []
+
 for items in dataDict["objects"]:
-    object_name = items["metadata"]["name"]
-    if object_name in offenders:
-        print("Adding to prune list :", object_name)
-        itemsToDelete.append(i)
-    i += 1
+    try:
+        object_name = items["metadata"]["name"]
+        if object_name in offenders:
+            print("Adding to prune list :", object_name)
+            itemsToDelete.append(i)
+        i += 1
+    except:
+        print("no metadata-name to sanitize")
 
 for delitem in sorted(itemsToDelete, reverse=True):
     print("Deleting Offending Objects")
     del dataDict["objects"][delitem]
+
+# Delete creationTimestamps
+try:
+    del dataDict["metadata"]["creationTimestamp"]
+except:
+    print("no creationTimestamp to delete")
+
+# Delete creationTimestamps and status from objects
+for items in dataDict["objects"]:
+    try:
+        del items["metadata"]["creationTimestamp"]
+    except:
+        print("no object creationTimestamp")
+
+    try:
+        del items["status"]
+    except:
+        print("no status to delete")
 
 # save the sanitized file:
 savefolder = workingfolder+"/sanitized"
