@@ -28,31 +28,19 @@ parameters:
     name: imagestreamName
     required: true
     value:
-  - description: The Username for Docker Credential
-    displayName: Docker User
-    name: dockerUser
+  - description: The Pull Secret Name for Docker
+    displayName: Docker Pull Secret Name
+    name: dockerPullSecret
     required: true
-  - description: The Credential for Docker
-    displayName: Docker Credential
-    name: dockerCred
-    required: true
+    value:
 objects:
-  - kind: Secret
-    apiVersion: v1
+  - apiVersion: v1
+    kind: ImageStream
     metadata:
-      name: ${imagestreamName}-docker-creds
-      namespace: "${namespace"
-    data:
-      .dockerconfigjson: >-
-        {"auths":{"docker.io":{"username":"${dockerUser}","password":"${dockerCred}","email":"unused"}}}
-    type: kubernetes.io/dockerconfigjson
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    labels:
-      application: ${imagestreamName}
-    name: ${imagestreamName}
-    namespace: "${namespace}"
+      labels:
+        application: ${imagestreamName}
+      name: ${imagestreamName}
+      namespace: "${namespace}"
     spec:
       lookupPolicy:
         local: true
@@ -60,7 +48,7 @@ objects:
         - name: latest
           from:
             kind: DockerImage
-            imagePullSecret: "${imagestreamName}-docker-creds"
-            name: "{$dockerImage}"
+            name: "${dockerImage}"
+            imagePullSecret: "${dockerPullSecret}"
           referencePolicy:
             type: Source

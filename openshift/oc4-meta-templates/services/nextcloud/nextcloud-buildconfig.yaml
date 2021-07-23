@@ -1,0 +1,62 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: nextcloud
+  annotations:
+    description: "Nextcloud Builder - takes a source dockerimage and dockerfile to create a custom container"
+    tags: "fileshare,nextcloud"
+    iconClass: fa-cloud-upload
+    template.openshift.io/provider-display-name: "ChrisHoban"
+    template.openshift.io/documentation-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/openshift/oc4-meta-templates/services/nextcloud/README.md"
+    template.openshift.io/support-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/issues"
+parameters:
+- name: MY_NEXTCLOUD_DOCKERFILE_REPO
+  description: Nginx Dockerfile source repository
+  value: https://github.com/ChrisHoban/ssg-openshift-meta-templates.git
+- name: MY_NEXTCLOUD_DOCKERFILE_REPO_REF
+  description: Nginx Dockerfile source repository branch / tags
+  value: master
+- name: MY_NEXTCLOUD_CONTEXT_DIR
+  description: Nextcloud Context Directory
+  value: openshift/oc4-meta-templates/services/nextcloud/
+- name: namespace
+  description: Namespace containing nextcloud imagestreams
+  value:
+- name: nginxImage
+  description: Imagestream for Nginx
+  value:
+objects:
+- kind: BuildConfig
+  apiVersion: v1
+  namespace: {namespace}
+  metadata:
+    creationTimestamp: null
+    labels:
+      build: my-nextcloud
+      app: nextcloud
+    name: my-nextcloud
+  spec:
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: my-nextcloud:latest
+        namespace: ${namespace}
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      git:
+        uri: ${MY_NEXTCLOUD_DOCKERFILE_REPO}
+        ref: ${MY_NEXTCLOUD_DOCKERFILE_REPO_REF}
+      type: Git
+      contextDir: ${MY_NEXTCLOUD_CONTEXT_DIR}
+    strategy:
+      type: Source
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          namespace: ${namespace}
+          name: nextcloud:latest
+    triggers:
+    - type: ConfigChange

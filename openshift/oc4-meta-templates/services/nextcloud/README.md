@@ -1,3 +1,16 @@
+# Nextcloud OpenShift Deployment
+
+The goal of this set of templates and scripts is to rapidly deploy a Nextcloud Cluster that adheres to BC Gov standard Namespace conventions. It deploys builders and imagestreams to Tools as first time run, and deploys Nextcloud and MariaDB including services/routes/secrets/config/storage to the appropriate environment (dev/test/prod). Some additions to a standard docker image based nextcloud install:
+
+* Uses supplied DockerHub Credentials to avoid docker pull rate failures on 3 source DockerImages (Nginx/MariaDB,Nextcloud)
+* Fronted by Nginx rather than Apache
+* Builder + Dockerfile strategy to customize the final Nextcloud container image composition and configuration
+* A continuation of work done by (https://github.com/tobru/) and (https://github.com/agahchen) 
+
+
+[![N|Solid](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/openshift/oc4-meta-templates/services/nextcloud/NextcloudOpenShiftDeployment.png)](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/openshift/oc4-meta-templates/services/nextcloud/NextcloudOpenShiftDeployment.png)
+
+
 ## Installation
 
 

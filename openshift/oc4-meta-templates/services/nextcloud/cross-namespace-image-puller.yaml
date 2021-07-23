@@ -1,0 +1,35 @@
+kind: Template
+apiVersion: v1
+labels:
+  template: cross-namespace-image-puller-role-binding-oc4
+message: |-
+  When a deploymentconfig requires access to an imagestream in another namespace (Typically tools), its required to grant that role binding inside the target namespace (tools)
+metadata:
+  annotations:
+    openshift.io/display-name: Image Puller Role Bindings
+    description: |-
+      This is a template for OpenShift Jenkins Pipelines.
+    iconClass: icon-jenkins
+    tags: instant-app,jenkins
+  name: cross-namespace-image-puller-role-binding
+parameters:
+- displayName: Openshift Namespace License Plate (ex// pjztlm)
+  name: LICENSE_PLATE
+  required: true
+- displayName: Openshift Environment Granted Access
+  name: ENV
+  required: true
+objects:
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    name: ${LICENSE_PLATE}-${ENV}-default-image-puller
+    namespace: "${LICENSE_PLATE}-tools"
+  subjects:
+    - kind: ServiceAccount
+      name: default
+      namespace: "${LICENSE_PLATE}-${ENV}"
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: 'system:image-puller'
