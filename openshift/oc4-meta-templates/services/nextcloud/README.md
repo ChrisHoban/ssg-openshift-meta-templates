@@ -5,10 +5,10 @@ The goal of this set of templates and scripts is to rapidly deploy a Nextcloud C
 * Uses supplied DockerHub Credentials to avoid docker pull rate failures on 3 source DockerImages (Nginx/MariaDB,Nextcloud)
 * Fronted by Nginx rather than Apache
 * Builder + Dockerfile strategy to customize the final Nextcloud container image composition and configuration
-* A continuation of work done by (https://github.com/tobru/) and (https://github.com/agahchen) 
+* A continuation of work done by (https://github.com/tobru/) and (https://github.com/agahchen)
 
 
-[![N|Solid](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/openshift/oc4-meta-templates/services/nextcloud/NextcloudOpenShiftDeployment.png)](https://github.com/ChrisHoban/ssg-openshift-meta-templates/raw/master/openshift/oc4-meta-templates/services/nextcloud/NextcloudOpenShiftDeployment.png)
+[![N|Solid](https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/NextcloudOpenShiftDeployment.png)](https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/openshift/oc4-meta-templates/services/nextcloud/NextcloudOpenShiftDeployment.png)
 
 
 ## Installation
