@@ -73,7 +73,6 @@ oc exec NEXTCLOUDPOD -c nextcloud -ti php occ
 
 ## Ideas
 
-* Use sclorg Nginx instead of Alpine Nginx for better OpenShift compatibility
 * Autoconfigure Nextcloud using `autoconfig.php`
 * Provide restic Backup example
 
