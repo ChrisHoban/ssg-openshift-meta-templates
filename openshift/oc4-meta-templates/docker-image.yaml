@@ -1,0 +1,66 @@
+apiVersion: template.openshift.io/v1
+kind: Template
+labels:
+  template: docker-imagestream
+message: |-
+  This will allow you to populate an imagestream from docker with a docker secret
+metadata:
+  annotations:
+    openshift.io/display-name: Docker Imagestream Template
+    description: |-
+      This will allow you to populate an imagestream from docker with a docker secret
+    iconClass: icon-openshift
+    tags: instant-app
+  name: docker-imagestream-template
+parameters:
+  - description: The OpenShift Namespace where the ImageStreams reside.
+    displayName: Namespace (ie <prefix>-tools, <prefix>-dev etc)
+    name: namespace
+    required: true
+    value:
+  - description: The Docker Image and Tag
+    displayName: Docker Image:tag
+    name: dockerImage
+    required: true
+    value:
+  - description: The name of the resulting Imagestream
+    displayName: Imagestream Name
+    name: imagestreamName
+    required: true
+    value:
+  - description: The Username for Docker Credential
+    displayName: Docker User
+    name: dockerUser
+    required: true
+  - description: The Credential for Docker
+    displayName: Docker Credential
+    name: dockerCred
+    required: true
+objects:
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      name: ${imagestreamName}-docker-creds
+      namespace: "${namespace"
+    data:
+      .dockerconfigjson: >-
+        {"auths":{"docker.io":{"username":"${dockerUser}","password":"${dockerCred}","email":"unused"}}}
+    type: kubernetes.io/dockerconfigjson
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      application: ${imagestreamName}
+    name: ${imagestreamName}
+    namespace: "${namespace}"
+    spec:
+      lookupPolicy:
+        local: true
+      tags:
+        - name: latest
+          from:
+            kind: DockerImage
+            imagePullSecret: "${imagestreamName}-docker-creds"
+            name: "{$dockerImage}"
+          referencePolicy:
+            type: Source

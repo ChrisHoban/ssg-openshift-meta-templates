@@ -1,0 +1,198 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: nextcloud
+  annotations:
+    description: "Nextcloud - A safe home for all your data"
+    tags: "fileshare,nextcloud"
+    iconClass: fa-cloud-upload
+    template.openshift.io/provider-display-name: "rsft"
+    template.openshift.io/documentation-url: "https://github.com/agahchen/nextcloud-openshift/blob/master/README.md"
+    template.openshift.io/support-url: "https://github.com/agahchen/nextcloud-openshift/issues"
+parameters:
+- name: NEXTCLOUD_HOST
+  description: Application URL of Nextcloud (Route/host)
+  required: true
+- name: NEXTCLOUD_IMAGE
+  description: Image to deploy
+  value: nextcloud
+- name: NEXTCLOUD_IMAGE_TAG
+  description: Tag of the Nextcloud Docker Image to deploy
+  value: latest
+- name: MY_NEXTCLOUD_DOCKERFILE_REPO
+  description: Nginx Dockerfile source repository
+  value: https://github.com/ChrisHoban/ssg-openshift-meta-templates/tree/master/openshift/oc4-meta-templates.git
+- name: MY_NEXTCLOUD_DOCKERFILE_REPO_REF
+  description: Nginx Dockerfile source repository branch / tags
+  value: master
+- name: PVC_SIZE
+  description: PVC size for Apps, Config and Data
+  value: 10Gi
+objects:
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: nextcloud-data
+  spec:
+    accessModes:
+    - ReadWriteMany
+    resources:
+      requests:
+        storage: ${PVC_SIZE}
+- kind: BuildConfig
+  apiVersion: v1
+  metadata:
+    creationTimestamp: null
+    labels:
+      build: my-nextcloud
+      app: nextcloud
+    name: my-nextcloud
+  spec:
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: my-nextcloud:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      git:
+        uri: ${MY_NEXTCLOUD_DOCKERFILE_REPO}
+        ref: ${MY_NEXTCLOUD_DOCKERFILE_REPO_REF}
+      type: Git
+      contextDir: "nextcloud"
+    strategy:
+      type: Source
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          namespace: ${namespace}
+          name: nextcloud:${NEXTCLOUD_IMAGE_TAG}
+    triggers:
+    - type: ConfigChange
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    labels:
+      app: nextcloud
+    name: nextcloud
+  spec:
+    replicas: 1
+    selector:
+      app: nextcloud
+      deploymentconfig: nextcloud
+    strategy:
+      activeDeadlineSeconds: 21600
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: nextcloud
+          deploymentconfig: nextcloud
+      spec:
+        containers:
+        - image: nextcloud
+          env:
+          - name: NC_dbhost
+            value: mariadb
+          - name: NC_dbuser
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: mariadb
+          - name: NC_dbpassword
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: mariadb
+          - name: NC_dbname
+            value: nextcloud
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 5
+          name: nextcloud
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 5
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/www/html
+            name: nextcloud-source
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: nextcloud-source
+          persistentVolumeClaim:
+            claimName: nextcloud-data
+        - name: nextcloud-data
+          emptyDir: {}
+    test: false
+    triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - nextcloud
+        from:
+          kind: ImageStreamTag
+          name: my-nextcloud:latest
+          namespace: ${namespace}
+    - type: ConfigChange
+- kind: Service
+  apiVersion: v1
+  metadata:
+    labels:
+      app: nextcloud
+    name: nextcloud
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 80
+    selector:
+      app: nextcloud
+      deploymentconfig: nextcloud
+    sessionAffinity: None
+    type: ClusterIP
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: nextcloud
+  spec:
+    host: ${NEXTCLOUD_HOST}
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: nextcloud
+      weight: 100
+    wildcardPolicy: None
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
