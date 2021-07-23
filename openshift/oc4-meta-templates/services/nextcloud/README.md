@@ -8,6 +8,7 @@ Pre Requisites:
 * OpenShift Namespace to deploy into
 * Valid OpenShift Login token
 * OpenShift4 CLI mapped/aliased as 'oc4'
+* first_time_run variable default to 1 (true), sets up imagestreams in tools first time.
 
 
 ```
@@ -33,7 +34,7 @@ Pre Requisites:
 You can use the provided DB dump `CronJob` template:
 
 ```
-oc process -f https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/openshift/oc4-meta-templates/services/nextcloud/mariadb-backup.yaml | oc -n MYNAMESPACE create -f -
+oc process -f https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/master/openshift/oc4-meta-templates/services/nextcloud/mariadb-backup.yaml | oc -n MYNAMESPACE create -f -
 ```
 
 This script dumps the DB to the same PV as the database stores it's data.
@@ -69,5 +70,5 @@ oc exec NEXTCLOUDPOD -c nextcloud -ti php occ
 Execute the following command to get the available parameters:
 
 ```
-oc process -f https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/openshift/oc4-meta-templates/services/nextcloud/nextcloud.yaml --parameters
+oc process -f https://raw.githubusercontent.com/ChrisHoban/ssg-openshift-meta-templates/master/openshift/oc4-meta-templates/services/nextcloud/nextcloud.yaml --parameters
 ```

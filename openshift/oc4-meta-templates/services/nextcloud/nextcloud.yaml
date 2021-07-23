@@ -6,9 +6,9 @@ metadata:
     description: "Nextcloud - A safe home for all your data"
     tags: "fileshare,nextcloud"
     iconClass: fa-cloud-upload
-    template.openshift.io/provider-display-name: "rsft"
-    template.openshift.io/documentation-url: "https://github.com/agahchen/nextcloud-openshift/blob/master/README.md"
-    template.openshift.io/support-url: "https://github.com/agahchen/nextcloud-openshift/issues"
+    template.openshift.io/provider-display-name: "ChrisHoban"
+    template.openshift.io/documentation-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/openshift/oc4-meta-templates/services/nextcloud/README.md"
+    template.openshift.io/support-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/issues"
 parameters:
 - name: NEXTCLOUD_HOST
   description: Application URL of Nextcloud (Route/host)
@@ -21,14 +21,181 @@ parameters:
   value: latest
 - name: MY_NEXTCLOUD_DOCKERFILE_REPO
   description: Nginx Dockerfile source repository
-  value: https://github.com/ChrisHoban/ssg-openshift-meta-templates/tree/master/openshift/oc4-meta-templates.git
+  value: https://github.com/ChrisHoban/ssg-openshift-meta-templates.git
 - name: MY_NEXTCLOUD_DOCKERFILE_REPO_REF
   description: Nginx Dockerfile source repository branch / tags
   value: master
+- name: MY_NEXTCLOUD_CONTEXT_DIR
+  description: Nextcloud Context Directory
+  value: openshift/oc4-meta-templates/services/nextcloud/
 - name: PVC_SIZE
   description: PVC size for Apps, Config and Data
   value: 10Gi
+- name: namespace
+  description: OpenShift Namespace of ImageStreams
+- description: Maximum amount of memory the container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- description: The name of the OpenShift Service exposed for the database.
+  displayName: Database Service Name
+  name: DATABASE_SERVICE_NAME
+  required: true
+  value: mariadb
+- description: Username for MariaDB user that will be used for accessing the database.
+  displayName: MariaDB Connection Username
+  from: user[A-Z0-9]{3}
+  generate: expression
+  name: MYSQL_USER
+  required: true
+- description: Password for the MariaDB connection user.
+  displayName: MariaDB Connection Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: MYSQL_PASSWORD
+  required: true
+- description: Password for the MariaDB root user.
+  displayName: MariaDB root Password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: MYSQL_ROOT_PASSWORD
+  required: true
+- description: Name of the MariaDB database accessed.
+  displayName: MariaDB Database Name
+  name: MYSQL_DATABASE
+  required: true
+  value: nextcloud
+- description: Version of MariaDB image to be used (10.1, 10.2 or latest).
+  displayName: Version of MariaDB Image
+  name: MARIADB_VERSION
+  required: true
+  value: latest
+- description: Volume space available for data, e.g. 512Mi, 2Gi.
+  displayName: Volume Capacity
+  name: VOLUME_CAPACITY
+  required: true
+  value: 10Gi
 objects:
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    annotations:
+      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
+      template.openshift.io/expose-password: '{.data[''database-password'']}'
+      template.openshift.io/expose-root_password: '{.data[''database-root-password'']}'
+      template.openshift.io/expose-username: '{.data[''database-user'']}'
+    name: ${DATABASE_SERVICE_NAME}
+  stringData:
+    database-name: ${MYSQL_DATABASE}
+    database-password: ${MYSQL_PASSWORD}
+    database-root-password: ${MYSQL_ROOT_PASSWORD}
+    database-user: ${MYSQL_USER}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: mysql://{.spec.clusterIP}:{.spec.ports[?(.name=="mariadb")].port}
+    name: ${DATABASE_SERVICE_NAME}
+  spec:
+    ports:
+    - name: mariadb
+      port: 3306
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: ${DATABASE_SERVICE_NAME}
+    annotations:
+      volume.beta.kubernetes.io/storage-class: netapp-block-standard
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    storageClassName: netapp-block-standard
+    resources:
+      requests:
+        storage: ${VOLUME_CAPACITY}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: ${DATABASE_SERVICE_NAME}
+  spec:
+    replicas: 1
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: ${DATABASE_SERVICE_NAME}
+      spec:
+        containers:
+        - env:
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: ${DATABASE_SERVICE_NAME}
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: ${DATABASE_SERVICE_NAME}
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-root-password
+                name: ${DATABASE_SERVICE_NAME}
+          - name: MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                key: database-name
+                name: ${DATABASE_SERVICE_NAME}
+          image: mariadb:${MARIADB_VERSION}
+          imagePullPolicy: Always
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 3306
+            timeoutSeconds: 1
+          name: mariadb
+          ports:
+          - containerPort: 3306
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u $MYSQL_USER -D $MYSQL_DATABASE
+                -e 'SELECT 1'
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: ${MEMORY_LIMIT}
+          volumeMounts:
+          - mountPath: /var/lib/mysql/data
+            name: ${DATABASE_SERVICE_NAME}-data
+        volumes:
+        - name: ${DATABASE_SERVICE_NAME}-data
+          persistentVolumeClaim:
+            claimName: ${DATABASE_SERVICE_NAME}
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mariadb
+        from:
+          kind: ImageStreamTag
+          name: mariadb:${MARIADB_VERSION}
+          namespace: ${namespace}
+      type: ImageChange
+    - type: ConfigChange
 - kind: PersistentVolumeClaim
   apiVersion: v1
   metadata:
@@ -61,7 +228,7 @@ objects:
         uri: ${MY_NEXTCLOUD_DOCKERFILE_REPO}
         ref: ${MY_NEXTCLOUD_DOCKERFILE_REPO_REF}
       type: Git
-      contextDir: "nextcloud"
+      contextDir: ${MY_NEXTCLOUD_CONTEXT_DIR}
     strategy:
       type: Source
       sourceStrategy:
