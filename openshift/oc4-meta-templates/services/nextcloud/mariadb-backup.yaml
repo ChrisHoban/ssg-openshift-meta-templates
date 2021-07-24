@@ -5,6 +5,8 @@ metadata:
   annotations:
     description: "Template for MongoDB container backup job"
     tags: "database,mariadb,backup"
+  labels:
+    appcluster: nextcloud
 parameters:
 - name: BACKUP_SCHEDULE
   description: "Cron-like schedule expression. Default: Every hour at :39'"
@@ -17,6 +19,8 @@ objects:
   kind: CronJob
   metadata:
     name: mariadb-backup
+    labels:
+      appcluster: nextcloud
   spec:
     schedule: ${BACKUP_SCHEDULE}
     concurrencyPolicy: Forbid

@@ -34,6 +34,7 @@ objects:
     labels:
       build: my-nextcloud
       app: nextcloud
+      appcluster: nextcloud
     name: my-nextcloud
   spec:
     nodeSelector: null

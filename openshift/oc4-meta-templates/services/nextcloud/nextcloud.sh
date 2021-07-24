@@ -18,6 +18,7 @@ oc4Ns="${license}-${env}"
 toolsNs="${license}-tools"
 firstTimeDeploy="1"
 dockerPullSecret="${nextcloudImagestreamName}-docker-creds"
+customImagestream="my-nextcloud"
 
 echo
 oc4 login --token=${oc4_token} --server=https://api.silver.devops.gov.bc.ca:6443
@@ -45,6 +46,8 @@ then
   oc4 process -f docker-image.yaml -p namespace=${toolsNs} -p dockerImage=${databaseImage} -p imagestreamName=${databaseImagestreamName} -p dockerPullSecret=${dockerPullSecret} | oc4 create -f -
   echo 'Nextcloud Builder'
   oc4 process -f nextcloud-builder.yaml -p namespace=${toolsNs} -p nginxImage=${nginxImagestreamName} | oc4 create -f -
+  echo 'Custom Nextcloud ImageStream'
+  oc4 process -f imagestream.yaml -p namespace=${toolsNs} -p imagestreamName=${customImagestream}  | oc4 create -f -
   oc4 start-build my-nextcloud -n ${toolsNs}
 fi
 

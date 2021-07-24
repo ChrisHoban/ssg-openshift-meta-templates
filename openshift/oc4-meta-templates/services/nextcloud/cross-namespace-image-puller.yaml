@@ -2,6 +2,7 @@ kind: Template
 apiVersion: v1
 labels:
   template: cross-namespace-image-puller-role-binding-oc4
+  appcluster: nextcloud
 message: |-
   When a deploymentconfig requires access to an imagestream in another namespace (Typically tools), its required to grant that role binding inside the target namespace (tools)
 metadata:
@@ -25,6 +26,8 @@ objects:
   metadata:
     name: ${LICENSE_PLATE}-${ENV}-default-image-puller
     namespace: "${LICENSE_PLATE}-tools"
+    labels:
+      appcluster: nextcloud
   subjects:
     - kind: ServiceAccount
       name: default

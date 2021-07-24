@@ -1,18 +1,17 @@
 apiVersion: template.openshift.io/v1
 kind: Template
 labels:
-  template: docker-imagestream
-
+  template: imagestream
 message: |-
-  This will allow you to populate an imagestream from docker with a docker secret
+  This will create a standard imagestream
 metadata:
   annotations:
-    openshift.io/display-name: Docker Imagestream Template
+    openshift.io/display-name: Imagestream Template
     description: |-
-      This will allow you to populate an imagestream from docker with a docker secret
+      This will create a standard imagestream
     iconClass: icon-openshift
     tags: instant-app
-  name: docker-imagestream-template
+  name: imagestream-template
   labels:
     appcluster: nextcloud
 parameters:
@@ -21,19 +20,9 @@ parameters:
     name: namespace
     required: true
     value:
-  - description: The Docker Image and Tag
-    displayName: Docker Image:tag
-    name: dockerImage
-    required: true
-    value:
   - description: The name of the resulting Imagestream
     displayName: Imagestream Name
     name: imagestreamName
-    required: true
-    value:
-  - description: The Pull Secret Name for Docker
-    displayName: Docker Pull Secret Name
-    name: dockerPullSecret
     required: true
     value:
 objects:
@@ -48,11 +37,3 @@ objects:
     spec:
       lookupPolicy:
         local: true
-      tags:
-        - name: latest
-          from:
-            kind: DockerImage
-            name: "${dockerImage}"
-            imagePullSecret: "${dockerPullSecret}"
-          referencePolicy:
-            type: Source

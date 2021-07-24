@@ -2,6 +2,8 @@ kind: Template
 apiVersion: v1
 metadata:
   name: nextcloud
+  labels:
+    appcluster: nextcloud
   annotations:
     description: "Nextcloud - A safe home for all your data"
     tags: "fileshare,nextcloud"
@@ -77,6 +79,8 @@ objects:
       template.openshift.io/expose-root_password: '{.data[''database-root-password'']}'
       template.openshift.io/expose-username: '{.data[''database-user'']}'
     name: ${DATABASE_SERVICE_NAME}
+    labels:
+      appcluster: nextcloud
   stringData:
     database-name: ${MYSQL_DATABASE}
     database-password: ${MYSQL_PASSWORD}
@@ -88,6 +92,8 @@ objects:
     annotations:
       template.openshift.io/expose-uri: mysql://{.spec.clusterIP}:{.spec.ports[?(.name=="mariadb")].port}
     name: ${DATABASE_SERVICE_NAME}
+    labels:
+      appcluster: nextcloud
   spec:
     ports:
     - name: mariadb
@@ -100,6 +106,8 @@ objects:
     name: ${DATABASE_SERVICE_NAME}
     annotations:
       volume.beta.kubernetes.io/storage-class: netapp-block-standard
+    labels:
+      appcluster: nextcloud
   spec:
     accessModes:
     - ReadWriteOnce
@@ -113,6 +121,8 @@ objects:
     annotations:
       template.alpha.openshift.io/wait-for-ready: "true"
     name: ${DATABASE_SERVICE_NAME}
+    labels:
+      appcluster: nextcloud
   spec:
     replicas: 1
     selector:
@@ -202,6 +212,7 @@ objects:
   metadata:
     labels:
       app: nextcloud
+      appcluster: nextcloud
     name: nextcloud
   spec:
     replicas: 1
@@ -294,6 +305,7 @@ objects:
   metadata:
     labels:
       app: nextcloud
+      appcluster: nextcloud
     name: nextcloud
   spec:
     ports:
@@ -310,6 +322,8 @@ objects:
   apiVersion: v1
   metadata:
     name: nextcloud
+    labels:
+      appcluster: nextcloud
   spec:
     host: ${NEXTCLOUD_HOST}
     port:
@@ -322,10 +336,21 @@ objects:
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: nextcloud-environment
+    labels:
+      appcluster: nextcloud
+  data:
+    CORDYN_Adapter_Endpoints_CLIE_MRGE: 'http://cordyn-dynamics-adapter-internal:8080/api/dynamics/clientmerge'
+    CORDYN_Cornet_Endpoints_CLIE_MRGE: 'https://wsgw.dev.jag.gov.bc.ca/CorDynQueueManager/clientMergeData'
 - apiVersion: batch/v1beta1
   kind: CronJob
   metadata:
     name: nextcloud-cron
+    labels:
+      appcluster: nextcloud
   spec:
     concurrencyPolicy: Replace
     jobTemplate:
