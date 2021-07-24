@@ -18,7 +18,7 @@ parameters:
   value: master
 - name: MY_NEXTCLOUD_CONTEXT_DIR
   description: Nextcloud Context Directory
-  value: openshift/oc4-meta-templates/services/nextcloud/
+  value: openshift/oc4-meta-templates/services/nextcloud/nginx
 - name: namespace
   description: Namespace containing nextcloud imagestreams
   value:
@@ -31,10 +31,10 @@ objects:
   metadata:
     creationTimestamp: null
     labels:
-      build: my-nextcloud
+      build: my-nginx
       app: nextcloud
       appcluster: nextcloud
-    name: my-nextcloud
+    name: my-nginx
   spec:
     nodeSelector: null
     output:
@@ -56,7 +56,7 @@ objects:
         imageOptimizationPolicy: SkipLayers
         from:
           kind: ImageStreamTag
-          name: nextcloud:latest
+          name: nginx:latest
       type: Docker
     triggers:
     - type: ConfigChange

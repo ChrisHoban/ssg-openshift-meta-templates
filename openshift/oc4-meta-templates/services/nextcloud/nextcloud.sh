@@ -18,7 +18,8 @@ oc4Ns="${license}-${env}"
 toolsNs="${license}-tools"
 firstTimeDeploy="1"
 dockerPullSecret="${nextcloudImagestreamName}-docker-creds"
-customImagestream="my-nextcloud"
+customNextcloudImagestream="my-nextcloud"
+customNginxImagestream="my-nginx"
 
 echo
 oc4 login --token=${oc4_token} --server=https://api.silver.devops.gov.bc.ca:6443
@@ -45,10 +46,13 @@ then
   echo 'Database ImageStream'
   oc4 process -f docker-image.yaml -p namespace=${toolsNs} -p dockerImage=${databaseImage} -p imagestreamName=${databaseImagestreamName} -p dockerPullSecret=${dockerPullSecret} | oc4 create -f -
   echo 'Nextcloud Builder'
-  oc4 process -f nextcloud-buildconfig.yaml -p namespace=${toolsNs} -p nginxImage=${nginxImagestreamName} | oc4 create -f -
+  oc4 process -f nextcloud-buildconfig.yaml -p namespace=${toolsNs} -p outputImageName=${customNextcloudImagestream} | oc4 create -f -
   echo 'Custom Nextcloud ImageStream'
-  oc4 process -f imagestream.yaml -p namespace=${toolsNs} -p imagestreamName=${customImagestream}  | oc4 create -f -
-  oc4 start-build my-nextcloud -n ${toolsNs}
+  oc4 process -f imagestream.yaml -p namespace=${toolsNs} -p imagestreamName=${customNextcloudImagestream}  | oc4 create -f -
+  echo 'Nginx Builder'
+  oc4 process -f nginx-buildconfig.yaml -p namespace=${toolsNs} -p outputImageName=${customNginxImagestream} | oc4 create -f -
+  echo 'Custom Nginx ImageStream'
+  oc4 process -f imagestream.yaml -p namespace=${toolsNs} -p imagestreamName=${customNginxImagestream}  | oc4 create -f -
 fi
 
 #Grant access to tools namespace images to the deployment namespace
