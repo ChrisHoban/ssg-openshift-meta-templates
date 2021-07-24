@@ -53,11 +53,10 @@ objects:
       type: Git
       contextDir: ${MY_NEXTCLOUD_CONTEXT_DIR}
     strategy:
-      type: Source
-      sourceStrategy:
+      dockerStrategy:
         from:
           kind: ImageStreamTag
-          namespace: ${namespace}
           name: nextcloud:latest
+      type: Docker
     triggers:
     - type: ConfigChange

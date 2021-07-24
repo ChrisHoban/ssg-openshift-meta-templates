@@ -1,0 +1,22 @@
+version: '2'
+
+volumes:
+  nextcloud:
+
+services:
+    app:
+      image: nextcloud
+      restart: always
+      volumes:
+        - nextcloud:/var/www/html
+    web:
+      image: nginx
+      restart: always
+      ports:
+        - 8080:80
+      links:
+        - app
+      volumes:
+        - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      volumes_from:
+        - app

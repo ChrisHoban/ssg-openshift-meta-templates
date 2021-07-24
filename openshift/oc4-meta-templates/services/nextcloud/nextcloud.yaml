@@ -24,8 +24,9 @@ parameters:
 - name: PVC_SIZE
   description: PVC size for Apps, Config and Data
   value: 10Gi
-- name: namespace
+- name: tools_namespace
   description: OpenShift Namespace of ImageStreams
+  required: true
 - description: Maximum amount of memory the container can use.
   displayName: Memory Limit
   name: MEMORY_LIMIT
@@ -201,6 +202,8 @@ objects:
   apiVersion: v1
   metadata:
     name: nextcloud-data
+    labels:
+      appcluster: nextcloud
   spec:
     accessModes:
     - ReadWriteMany

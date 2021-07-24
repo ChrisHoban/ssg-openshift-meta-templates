@@ -12,7 +12,7 @@ nextcloudImage="nextcloud:22-fpm"
 nextcloudImagestreamName="nextcloud"
 nginxImage="nginx:alpine"
 nginxImagestreamName="nginx"
-databaseImage="mariadb:latest"
+databaseImage="mariadb:10.2"
 databaseImagestreamName="mariadb"
 oc4Ns="${license}-${env}"
 toolsNs="${license}-tools"
@@ -28,7 +28,7 @@ oc4 project ${toolsNs}
 if [ ${firstTimeDeploy} == "1" ]
 then
 
-  oc4 create secret docker-registry ${dockerPullSecret} \
+  oc4 create secret docker-registry ${dockerPullSecret}\
       --docker-server=docker.io \
       --docker-username=${dockerUser} \
       --docker-password=${dockerCred} \
@@ -45,7 +45,7 @@ then
   echo 'Database ImageStream'
   oc4 process -f docker-image.yaml -p namespace=${toolsNs} -p dockerImage=${databaseImage} -p imagestreamName=${databaseImagestreamName} -p dockerPullSecret=${dockerPullSecret} | oc4 create -f -
   echo 'Nextcloud Builder'
-  oc4 process -f nextcloud-builder.yaml -p namespace=${toolsNs} -p nginxImage=${nginxImagestreamName} | oc4 create -f -
+  oc4 process -f nextcloud-buildconfig.yaml -p namespace=${toolsNs} -p nginxImage=${nginxImagestreamName} | oc4 create -f -
   echo 'Custom Nextcloud ImageStream'
   oc4 process -f imagestream.yaml -p namespace=${toolsNs} -p imagestreamName=${customImagestream}  | oc4 create -f -
   oc4 start-build my-nextcloud -n ${toolsNs}
@@ -56,4 +56,4 @@ oc4 process -f cross-namespace-image-puller.yaml -p LICENSE_PLATE=${license} -p 
 
 oc4 project ${oc4Ns}
 
-oc4 process -f nextcloud.yaml -p NEXTCLOUD_HOST=${appname}-${env}.apps.silver.devops.gov.bc.ca -p namespace=${oc4Ns} -p tools_namespace=${toolsNs} | oc4 create -f -
+oc4 process -f nextcloud.yaml -p NEXTCLOUD_HOST=${appname}-${env}.apps.silver.devops.gov.bc.ca -p tools_namespace=${toolsNs} | oc4 create -f -

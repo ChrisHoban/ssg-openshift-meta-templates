@@ -55,4 +55,4 @@ objects:
             name: "${dockerImage}"
             imagePullSecret: "${dockerPullSecret}"
           referencePolicy:
-            type: Source
+            type: Local
