@@ -181,7 +181,7 @@ objects:
             limits:
               memory: ${MEMORY_LIMIT}
           volumeMounts:
-          - mountPath: /var/lib/mysql/data
+          - mountPath: /var/lib/mysql
             name: ${DATABASE_SERVICE_NAME}-data
         volumes:
         - name: ${DATABASE_SERVICE_NAME}-data
