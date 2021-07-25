@@ -249,6 +249,18 @@ objects:
     resources:
       requests:
         storage: ${PVC_SIZE}
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: nextcloud-files
+    labels:
+      appcluster: nextcloud
+  spec:
+    accessModes:
+    - ReadWriteMany
+    resources:
+      requests:
+        storage: ${PVC_SIZE}
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
@@ -300,9 +312,10 @@ objects:
           - name: NC_dbname
             value: nextcloud
           image: my-nextcloud
+          namespace: ${tools_namespace}
           imagePullPolicy: Always
           livenessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             initialDelaySeconds: 1
             periodSeconds: 10
             successThreshold: 1
@@ -314,7 +327,7 @@ objects:
           - containerPort: 9000
             protocol: TCP
           readinessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             initialDelaySeconds: 1
             periodSeconds: 10
             successThreshold: 1
@@ -327,27 +340,28 @@ objects:
           - mountPath: /var/www/html
             name: nextcloud-files
         - image: my-nginx
+          namespace: ${tools_namespace}
           imagePullPolicy: Always
           livenessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             initialDelaySeconds: 1
             periodSeconds: 10
             successThreshold: 1
             tcpSocket:
               port: 8080
-            timeoutSeconds: 1
+            timeoutSeconds: 5
           name: nginx
           ports:
           - containerPort: 8080
             protocol: TCP
           readinessProbe:
-            failureThreshold: 3
+            failureThreshold: 30
             initialDelaySeconds: 1
             periodSeconds: 10
             successThreshold: 1
             tcpSocket:
               port: 8080
-            timeoutSeconds: 1
+            timeoutSeconds: 5
           resources: {}
           terminationMessagePath: /dev/termination-log
           volumeMounts:
@@ -370,6 +384,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: my-nextcloud:latest
+          namespace: ${tools_namespace}
       type: ImageChange
     - imageChangeParams:
         automatic: true
@@ -378,21 +393,21 @@ objects:
         from:
           kind: ImageStreamTag
           name: my-nginx:latest
+          namespace: ${tools_namespace}
       type: ImageChange
     - type: ConfigChange
-- kind: Service
-  apiVersion: v1
+- apiVersion: v1
+  kind: Service
   metadata:
     labels:
       app: nextcloud
-      appcluster: nextcloud
     name: nextcloud
   spec:
     ports:
     - name: 8080-tcp
       port: 8080
       protocol: TCP
-      targetPort: 80
+      targetPort: 8080
     selector:
       app: nextcloud
       deploymentconfig: nextcloud
@@ -461,6 +476,7 @@ objects:
               - name: NC_dbname
                 value: nextcloud
               image: my-nextcloud:latest
+              namespace: ${tools_namespace}
               imagePullPolicy: Always
               name: nextcloud-cron
               resources: {}
