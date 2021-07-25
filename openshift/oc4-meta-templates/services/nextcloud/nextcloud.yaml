@@ -27,11 +27,46 @@ parameters:
 - name: tools_namespace
   description: OpenShift Namespace of ImageStreams
   required: true
-- description: Maximum amount of memory the container can use.
+- description: Maximum amount of memory the db container can use.
   displayName: Memory Limit
   name: MEMORY_LIMIT
   required: true
+  value: 1Gi
+- description: Requested amount of memory the db container can use.
+  displayName: Memory Limit
+  name: MEMORY_REQUEST
+  required: true
   value: 512Mi
+- description: Maximum amount of cpu the db container can use.
+  displayName: Memory Limit
+  name: CPU_LIMIT
+  required: true
+  value: '1'
+- description: Requested amount of cpu the db container can use.
+  displayName: Memory Limit
+  name: CPU_REQUEST
+  required: true
+  value: 500m
+- description: Maximum amount of memory the nextcloud container can use.
+  displayName: Memory Limit
+  name: NC_MEMORY_LIMIT
+  required: true
+  value: 4Gi
+- description: Requested amount of memory the nextcloud container can use.
+  displayName: Memory Limit
+  name: NC_MEMORY_REQUEST
+  required: true
+  value: 2Gi
+- description: Maximum amount of cpu the nextcloud container can use.
+  displayName: Memory Limit
+  name: NC_CPU_LIMIT
+  required: true
+  value: '4'
+- description: Requested amount of cpu the nextcloud container can use.
+  displayName: Memory Limit
+  name: NC_CPU_REQUEST
+  required: true
+  value: '2'
 - description: The name of the OpenShift Service exposed for the database.
   displayName: Database Service Name
   name: DATABASE_SERVICE_NAME
@@ -180,6 +215,10 @@ objects:
           resources:
             limits:
               memory: ${MEMORY_LIMIT}
+              cpu:  ${CPU_LIMIT}
+            requests:
+              memory: ${MEMORY_REQUEST}
+              cpu:  ${CPU_REQUEST}
           volumeMounts:
           - mountPath: /var/lib/mysql
             name: ${DATABASE_SERVICE_NAME}-data
@@ -214,17 +253,23 @@ objects:
   apiVersion: v1
   metadata:
     labels:
-      app: nginx
+      app: nextcloud
       appcluster: nextcloud
-    name: nginx
+    name: nextcloud
   spec:
     replicas: 1
     selector:
-      app: nginx
-      deploymentconfig: nginx
+      app: nextcloud
+      deploymentconfig: nextcloud
     strategy:
       activeDeadlineSeconds: 21600
-      resources: {}
+      resources:
+        limits:
+          memory: ${NC_MEMORY_LIMIT}
+          cpu:  ${NC_CPU_LIMIT}
+        requests:
+          memory: ${NC_MEMORY_REQUEST}
+          cpu:  ${NC_CPU_REQUEST}
       rollingParams:
         intervalSeconds: 1
         maxSurge: 25%
@@ -235,11 +280,53 @@ objects:
     template:
       metadata:
         labels:
-          app: nginx
-          deploymentconfig: nginx
+          app: nextcloud
+          deploymentconfig: nextcloud
       spec:
         containers:
-        - image: nginx
+        - env:
+          - name: NC_dbhost
+            value: mariadb
+          - name: NC_dbuser
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: mariadb
+          - name: NC_dbpassword
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: mariadb
+          - name: NC_dbname
+            value: nextcloud
+          image: my-nextcloud
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 9000
+            timeoutSeconds: 5
+          name: nextcloud
+          ports:
+          - containerPort: 9000
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 9000
+            timeoutSeconds: 5
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/www/html
+            name: nextcloud-files
+        - image: my-nginx
           imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
@@ -248,7 +335,7 @@ objects:
             successThreshold: 1
             tcpSocket:
               port: 8080
-            timeoutSeconds: 5
+            timeoutSeconds: 1
           name: nginx
           ports:
           - containerPort: 8080
@@ -260,24 +347,38 @@ objects:
             successThreshold: 1
             tcpSocket:
               port: 8080
-            timeoutSeconds: 5
+            timeoutSeconds: 1
           resources: {}
           terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/www/html
+            name: nextcloud-files
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
         terminationGracePeriodSeconds: 30
+        volumes:
+        - name: nextcloud-files
+          persistentVolumeClaim:
+            claimName: nextcloud-files
     test: false
     triggers:
-    - type: ImageChange
-      imageChangeParams:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - nextcloud
+        from:
+          kind: ImageStreamTag
+          name: my-nextcloud:latest
+      type: ImageChange
+    - imageChangeParams:
         automatic: true
         containerNames:
         - nginx
         from:
           kind: ImageStreamTag
           name: my-nginx:latest
-          namespace: ${tools_namespace}
+      type: ImageChange
     - type: ConfigChange
 - kind: Service
   apiVersion: v1
