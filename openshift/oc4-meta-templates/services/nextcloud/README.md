@@ -29,6 +29,9 @@ Pre Requisites:
 ```
 
 
+[![N|Solid](https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/nextcloud-installer.png)](https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/openshift/oc4-meta-templates/services/nextcloud/nextcloud-installer.png)
+
+
 ### 2 Configure Nextcloud
 
 * Navigate to http://nextcloud.example.com
