@@ -1,0 +1,70 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: nextcloud-installer
+  annotations:
+    description: "OpenShift CronJob"
+    tags: "template,cronjob"
+    iconClass: fa-cloud-upload
+    template.openshift.io/provider-display-name: "ChrisHoban"
+    template.openshift.io/documentation-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/blob/master/openshift/oc4-meta-templates/README.md"
+    template.openshift.io/support-url: "https://github.com/ChrisHoban/ssg-openshift-meta-templates/issues"
+parameters:
+- name: CRON_NAME
+  description: Name of Cronjob
+  value: mycron
+- name: SCHEDULE
+  description: "Schedule of cron  (eg: '*/15 * * * *' every 15 minutes)"
+  required: true
+  value: '*/15 * * * *'
+- name: CURL_URL
+  description: "Curl URL to hit  (eg: 'http://servicename/uri' )"
+  required: true
+  value: 'http://servicename/uri'
+objects:
+- apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    name: ${CRON_NAME}-cron
+    labels:
+      appcluster: ${CRON_NAME}
+  spec:
+    schedule: ${SCHEDULE}
+    startingDeadlineSeconds: 200
+    concurrencyPolicy: Replace
+    suspend: false
+    jobTemplate:
+      metadata:
+        creationTimestamp: null
+      spec:
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              name: ${CRON_NAME}-job
+              parent: ${CRON_NAME}-cronjob
+          spec:
+            containers:
+              - name: ${CRON_NAME}-job-pod
+                image: >-
+                  image-registry.openshift-image-registry.svc:5000/openshift/httpd@sha256:b21e28894aab0a576079a8482a18a1d3ac73c63aad0647258651c9739a3e33f9
+                command:
+                  - /bin/sh
+                args:
+                  - '-c'
+                  - >-
+                    curl -XPOST
+                    '{CURL_URL}'
+                    --header 'Content-Type: application/json' --header
+                    'Transfer-encoding: chunked' -d ""
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                imagePullPolicy: IfNotPresent
+            restartPolicy: OnFailure
+            terminationGracePeriodSeconds: 30
+            dnsPolicy: ClusterFirst
+            securityContext: {}
+            schedulerName: default-scheduler
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1

@@ -20,7 +20,6 @@ Pre Requisites:
 * Docker Hub Username and credentials
 * OpenShift Namespace to deploy into
 * Valid OpenShift Login token
-* OpenShift4 CLI mapped/aliased as 'oc4'
 * first_time_run variable default to 1 (true), sets up imagestreams in tools first time.
 
 
@@ -36,8 +35,8 @@ Pre Requisites:
 
 * Navigate to http://nextcloud.example.com
 * Fill in the form and finish the installation. The DB credentials can be
-  found in the secret `mariadb`. In the Webconsole it can be found under
-  `Resources -> Secrets -> mariadb -> Reveal Secret`
+  found in the secret `mysql`. In the Webconsole it can be found under
+  `Resources -> Secrets -> mysql -> Reveal Secret`
 
 **Hints**
 

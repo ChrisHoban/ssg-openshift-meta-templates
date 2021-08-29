@@ -1,9 +1,7 @@
 kind: Template
 apiVersion: v1
 metadata:
-  name: nextcloud
-  labels:
-    appcluster: nextcloud
+  name: nextcloud-installer
   annotations:
     description: "Nextcloud - A safe home for all your data"
     tags: "fileshare,nextcloud"
@@ -23,7 +21,7 @@ parameters:
   value: latest
 - name: PVC_SIZE
   description: PVC size for Apps, Config and Data
-  value: 10Gi
+  value: 2Gi
 - name: tools_namespace
   description: OpenShift Namespace of ImageStreams
   required: true
@@ -31,19 +29,19 @@ parameters:
   displayName: Memory Limit
   name: MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 8Gi
 - description: Requested amount of memory the db container can use.
-  displayName: Memory Limit
+  displayName: Memory Request
   name: MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 4Gi
 - description: Maximum amount of cpu the db container can use.
-  displayName: Memory Limit
+  displayName: CPU Limit
   name: CPU_LIMIT
   required: true
   value: '1'
 - description: Requested amount of cpu the db container can use.
-  displayName: Memory Limit
+  displayName: CPU Request
   name: CPU_REQUEST
   required: true
   value: 500m
@@ -51,9 +49,9 @@ parameters:
   displayName: Memory Limit
   name: NC_MEMORY_LIMIT
   required: true
-  value: 4Gi
+  value: 8Gi
 - description: Requested amount of memory the nextcloud container can use.
-  displayName: Memory Limit
+  displayName: Memory Request
   name: NC_MEMORY_REQUEST
   required: true
   value: 2Gi
@@ -61,17 +59,37 @@ parameters:
   displayName: Memory Limit
   name: NC_CPU_LIMIT
   required: true
-  value: '4'
+  value: '2'
 - description: Requested amount of cpu the nextcloud container can use.
   displayName: Memory Limit
   name: NC_CPU_REQUEST
   required: true
-  value: '2'
+  value: '1'
+- description: Maximum amount of memory the nginx container can use.
+  displayName: Memory Limit
+  name: Nx_MEMORY_LIMIT
+  required: true
+  value: 2Gi
+- description: Requested amount of memory the nginx container can use.
+  displayName: Memory Limit
+  name: Nx_MEMORY_REQUEST
+  required: true
+  value: 1Gi
+- description: Maximum amount of cpu the nginx container can use.
+  displayName: Memory Limit
+  name: Nx_CPU_LIMIT
+  required: true
+  value: 500m
+- description: Requested amount of cpu the nginx container can use.
+  displayName: Memory Limit
+  name: Nx_CPU_REQUEST
+  required: true
+  value: 500m
 - description: The name of the OpenShift Service exposed for the database.
   displayName: Database Service Name
   name: DATABASE_SERVICE_NAME
   required: true
-  value: mariadb
+  value: mysql
 - description: Username for MariaDB user that will be used for accessing the database.
   displayName: MariaDB Connection Username
   from: user[A-Z0-9]{3}
@@ -85,164 +103,51 @@ parameters:
   name: MYSQL_PASSWORD
   required: true
 - description: Password for the MariaDB root user.
-  displayName: MariaDB root Password
+  displayName: mysql root Password
   from: '[a-zA-Z0-9]{16}'
   generate: expression
   name: MYSQL_ROOT_PASSWORD
   required: true
-- description: Name of the MariaDB database accessed.
-  displayName: MariaDB Database Name
+- description: Name of the MySQL database accessed.
+  displayName: MySQL Database Name
   name: MYSQL_DATABASE
   required: true
-  value: nextcloud
-- description: Version of MariaDB image to be used (10.1, 10.2 or latest).
-  displayName: Version of MariaDB Image
-  name: MARIADB_VERSION
+  value: mysql
+- description: Version of mysql image to be used (10.1, 10.2 or latest).
+  displayName: Version of mysql Image
+  name: DB_VERSION
   required: true
   value: latest
-- description: Volume space available for data, e.g. 512Mi, 2Gi.
+- description: Volume space available for mysql data, e.g. 512Mi, 2Gi.
   displayName: Volume Capacity
   name: VOLUME_CAPACITY
   required: true
-  value: 10Gi
+  value: 4Gi
+- description: Nextcloud Service Name
+  displayName: Nextcloud Service Name
+  name: nextcloud_name
+  required: true
+  value: nextcloud
+- description: IP Whitelist for nextcloud route
+  displayName: IP Whitelist
+  name: ip_whitelist
+  required: true
+  value: '*'
+- name: CURL_URL
+  description: Curl URL to hit  (eg: 'http://servicename/uri' )
+  required: true
+  value: 'http://servicename/cron.php'
+- name: SCHEDULE
+  description: Schedule of cron  (eg: '*/15 * * * *' every 15 minutes)
+  required: true
+  value: '*/5 * * * *'
 objects:
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    annotations:
-      template.openshift.io/expose-database_name: '{.data[''database-name'']}'
-      template.openshift.io/expose-password: '{.data[''database-password'']}'
-      template.openshift.io/expose-root_password: '{.data[''database-root-password'']}'
-      template.openshift.io/expose-username: '{.data[''database-user'']}'
-    name: ${DATABASE_SERVICE_NAME}
-    labels:
-      appcluster: nextcloud
-  stringData:
-    database-name: ${MYSQL_DATABASE}
-    database-password: ${MYSQL_PASSWORD}
-    database-root-password: ${MYSQL_ROOT_PASSWORD}
-    database-user: ${MYSQL_USER}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      template.openshift.io/expose-uri: mysql://{.spec.clusterIP}:{.spec.ports[?(.name=="mariadb")].port}
-    name: ${DATABASE_SERVICE_NAME}
-    labels:
-      appcluster: nextcloud
-  spec:
-    ports:
-    - name: mariadb
-      port: 3306
-    selector:
-      name: ${DATABASE_SERVICE_NAME}
-- apiVersion: v1
-  kind: PersistentVolumeClaim
-  metadata:
-    name: ${DATABASE_SERVICE_NAME}
-    annotations:
-      volume.beta.kubernetes.io/storage-class: netapp-block-standard
-    labels:
-      appcluster: nextcloud
-  spec:
-    accessModes:
-    - ReadWriteOnce
-    storageClassName: netapp-block-standard
-    resources:
-      requests:
-        storage: ${VOLUME_CAPACITY}
-- apiVersion: v1
-  kind: DeploymentConfig
-  metadata:
-    annotations:
-      template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${DATABASE_SERVICE_NAME}
-    labels:
-      appcluster: nextcloud
-  spec:
-    replicas: 1
-    selector:
-      name: ${DATABASE_SERVICE_NAME}
-    strategy:
-      type: Recreate
-    template:
-      metadata:
-        labels:
-          name: ${DATABASE_SERVICE_NAME}
-      spec:
-        containers:
-        - env:
-          - name: MYSQL_USER
-            valueFrom:
-              secretKeyRef:
-                key: database-user
-                name: ${DATABASE_SERVICE_NAME}
-          - name: MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-password
-                name: ${DATABASE_SERVICE_NAME}
-          - name: MYSQL_ROOT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-root-password
-                name: ${DATABASE_SERVICE_NAME}
-          - name: MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                key: database-name
-                name: ${DATABASE_SERVICE_NAME}
-          image: mariadb:${MARIADB_VERSION}
-          imagePullPolicy: Always
-          livenessProbe:
-            initialDelaySeconds: 30
-            tcpSocket:
-              port: 3306
-            timeoutSeconds: 1
-          name: mariadb
-          ports:
-          - containerPort: 3306
-          readinessProbe:
-            exec:
-              command:
-              - /bin/sh
-              - -i
-              - -c
-              - MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u $MYSQL_USER -D $MYSQL_DATABASE
-                -e 'SELECT 1'
-            initialDelaySeconds: 5
-            timeoutSeconds: 1
-          resources:
-            limits:
-              memory: ${MEMORY_LIMIT}
-              cpu:  ${CPU_LIMIT}
-            requests:
-              memory: ${MEMORY_REQUEST}
-              cpu:  ${CPU_REQUEST}
-          volumeMounts:
-          - mountPath: /var/lib/mysql
-            name: ${DATABASE_SERVICE_NAME}-data
-        volumes:
-        - name: ${DATABASE_SERVICE_NAME}-data
-          persistentVolumeClaim:
-            claimName: ${DATABASE_SERVICE_NAME}
-    triggers:
-    - imageChangeParams:
-        automatic: true
-        containerNames:
-        - mariadb
-        from:
-          kind: ImageStreamTag
-          name: mariadb:${MARIADB_VERSION}
-          namespace: ${tools_namespace}
-      type: ImageChange
-    - type: ConfigChange
 - kind: PersistentVolumeClaim
   apiVersion: v1
   metadata:
-    name: nextcloud-data
+    name: ${nextcloud_name}-data
     labels:
-      appcluster: nextcloud
+      appcluster: ${nextcloud_name}
   spec:
     accessModes:
     - ReadWriteMany
@@ -252,36 +157,190 @@ objects:
 - kind: PersistentVolumeClaim
   apiVersion: v1
   metadata:
-    name: nextcloud-files
+    name: ${nextcloud_name}-files
     labels:
-      appcluster: nextcloud
+      appcluster: ${nextcloud_name}
   spec:
     accessModes:
     - ReadWriteMany
     resources:
       requests:
         storage: ${PVC_SIZE}
+- kind: ConfigMap
+  apiVersion: v1
+  metadata:
+    name: nginx-config
+  data:
+    nginx.conf: |-
+      # user www-data;
+      worker_processes 1;
+      error_log /dev/stdout info;
+      pid /tmp/nginx.pid;
+
+      events {
+        worker_connections 1024;
+      }
+
+      http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        server_tokens off;
+
+        upstream php-handler {
+          server localhost:9000;
+        }
+
+        server {
+          listen *:8080 default_server;
+          listen [::]:8080 default_server;
+          server_name _;
+          access_log /dev/stdout;
+
+          # Docker default IP rangs
+          set_real_ip_from 172.16.0.0/12;
+          real_ip_header X-Forwarded-For;
+
+          # Add headers to serve security related headers
+          # Before enabling Strict-Transport-Security headers please read into this
+          # topic first.
+          # add_header Strict-Transport-Security "max-age=15768000;
+          add_header Strict-Transport-Security "max-age=15768000; includeSubDomains" always;
+          # includeSubDomains; preload;";
+          #
+          # WARNING: Only add the preload option once you read about
+          # the consequences in https://hstspreload.org/. This option
+          # will add the domain to a hardcoded list that is shipped
+          # in all major browsers and getting removed from this list
+          # could take several months.
+          add_header X-Content-Type-Options nosniff;
+          add_header X-XSS-Protection "1; mode=block";
+          add_header X-Robots-Tag none;
+          add_header X-Download-Options noopen;
+          add_header X-Permitted-Cross-Domain-Policies none;
+
+          # Path to the root of your installation
+          root /var/www/html/;
+
+          location = /robots.txt {
+            allow all;
+            log_not_found off;
+            access_log off;
+          }
+
+          # The following 2 rules are only needed for the user_webfinger app.
+          # Uncomment it if you're planning to use this app.
+          #rewrite ^/.well-known/host-meta /public.php?service=host-meta last;
+          #rewrite ^/.well-known/host-meta.json /public.php?service=host-meta-json
+          # last;
+
+          location = /.well-known/carddav {
+            return 301 $scheme://$host/remote.php/dav;
+          }
+          location = /.well-known/caldav {
+            return 301 $scheme://$host/remote.php/dav;
+          }
+
+          # set max upload size
+          client_max_body_size 512M;
+          fastcgi_buffers 64 4K;
+
+          # Enable gzip but do not remove ETag headers
+          gzip on;
+          gzip_vary on;
+          gzip_comp_level 4;
+          gzip_min_length 256;
+          gzip_proxied expired no-cache no-store private no_last_modified no_etag auth;
+          gzip_types application/atom+xml application/javascript application/json application/ld+json application/manifest+json application/rss+xml application/vnd.geo+json application/vnd.ms-fontobject application/x-font-ttf application/x-web-app-manifest+json application/xhtml+xml application/xml font/opentype image/bmp image/svg+xml image/x-icon text/cache-manifest text/css text/plain text/vcard text/vnd.rim.location.xloc text/vtt text/x-component text/x-cross-domain-policy;
+
+          # Uncomment if your server is build with the ngx_pagespeed module
+          # This module is currently not supported.
+          #pagespeed off;
+
+          location / {
+            rewrite ^ /index.php$uri;
+          }
+
+          location ~ ^/(?:build|tests|config|lib|3rdparty|templates|data)/ {
+            deny all;
+          }
+          location ~ ^/(?:\.|autotest|occ|issue|indie|db_|console) {
+            deny all;
+          }
+
+          location ~ ^/(?:index|remote|public|cron|core/ajax/update|status|ocs/v[12]|updater/.+|ocs-provider/.+)\.php(?:$|/) {
+            fastcgi_split_path_info ^(.+\.php)(/.*)$;
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_param PATH_INFO $fastcgi_path_info;
+            fastcgi_param HTTPS on;
+            fastcgi_param REMOTE_ADDR $http_x_real_ip;
+            #Avoid sending the security headers twice
+            fastcgi_param modHeadersAvailable true;
+            fastcgi_param front_controller_active true;
+            fastcgi_pass php-handler;
+            fastcgi_intercept_errors on;
+            fastcgi_request_buffering off;
+          }
+
+          location ~ ^/(?:updater|ocs-provider)(?:$|/) {
+            try_files $uri/ =404;
+            index index.php;
+          }
+
+          # Adding the cache control header for js and css files
+          # Make sure it is BELOW the PHP block
+          location ~ \.(?:css|js|woff|svg|gif)$ {
+            try_files $uri /index.php$uri$is_args$args;
+            add_header Cache-Control "public, max-age=15778463";
+            # Add headers to serve security related headers (It is intended to
+            # have those duplicated to the ones above)
+            # Before enabling Strict-Transport-Security headers please read into
+            # this topic first.
+            # add_header Strict-Transport-Security "max-age=15768000;
+            #  includeSubDomains; preload;";
+            #
+            # WARNING: Only add the preload option once you read about
+            # the consequences in https://hstspreload.org/. This option
+            # will add the domain to a hardcoded list that is shipped
+            # in all major browsers and getting removed from this list
+            # could take several months.
+            add_header X-Content-Type-Options nosniff;
+            add_header X-XSS-Protection "1; mode=block";
+            add_header X-Robots-Tag none;
+            add_header X-Download-Options noopen;
+            add_header X-Permitted-Cross-Domain-Policies none;
+            # Optional: Don't log access to assets
+            access_log off;
+          }
+
+          location ~ \.(?:png|html|ttf|ico|jpg|jpeg)$ {
+            try_files $uri /index.php$uri$is_args$args;
+            # Optional: Don't log access to other assets
+            access_log off;
+          }
+        }
+      }
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
     labels:
-      app: nextcloud
-      appcluster: nextcloud
-    name: nextcloud
+      app: ${nextcloud_name}
+      appcluster: ${nextcloud_name}
+    name: ${nextcloud_name}
   spec:
     replicas: 1
     selector:
-      app: nextcloud
-      deploymentconfig: nextcloud
+      app: ${nextcloud_name}
+      deploymentconfig: ${nextcloud_name}
     strategy:
       activeDeadlineSeconds: 21600
-      resources:
-        limits:
-          memory: ${NC_MEMORY_LIMIT}
-          cpu:  ${NC_CPU_LIMIT}
-        requests:
-          memory: ${NC_MEMORY_REQUEST}
-          cpu:  ${NC_CPU_REQUEST}
+      resources: {}
       rollingParams:
         intervalSeconds: 1
         maxSurge: 25%
@@ -292,25 +351,25 @@ objects:
     template:
       metadata:
         labels:
-          app: nextcloud
-          deploymentconfig: nextcloud
+          app: ${nextcloud_name}
+          deploymentconfig: ${nextcloud_name}
       spec:
         containers:
         - env:
-          - name: NC_dbhost
-            value: mariadb
-          - name: NC_dbuser
+          - name: MYSQL_HOST
+            value: mysql
+          - name: MYSQL_USER
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: mariadb
-          - name: NC_dbpassword
+                name: mysql
+          - name: MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: mariadb
-          - name: NC_dbname
-            value: nextcloud
+                name: mysql
+          - name: MYSQL_DATABASE
+            value: ${MYSQL_DATABASE}
           image: my-nextcloud
           namespace: ${tools_namespace}
           imagePullPolicy: Always
@@ -334,11 +393,17 @@ objects:
             tcpSocket:
               port: 9000
             timeoutSeconds: 5
-          resources: {}
+          resources:
+            limits:
+              memory: ${NC_MEMORY_LIMIT}
+              cpu:  ${NC_CPU_LIMIT}
+            requests:
+              memory: ${NC_MEMORY_REQUEST}
+              cpu:  ${NC_CPU_REQUEST}
           terminationMessagePath: /dev/termination-log
           volumeMounts:
           - mountPath: /var/www/html
-            name: nextcloud-files
+            name: ${nextcloud_name}-files
         - image: my-nginx
           namespace: ${tools_namespace}
           imagePullPolicy: Always
@@ -362,19 +427,32 @@ objects:
             tcpSocket:
               port: 8080
             timeoutSeconds: 5
-          resources: {}
+          resources:
+            limits:
+              memory: ${NX_MEMORY_LIMIT}
+              cpu:  ${NX_CPU_LIMIT}
+            requests:
+              memory: ${NX_MEMORY_REQUEST}
+              cpu:  ${NX_CPU_REQUEST}
           terminationMessagePath: /dev/termination-log
           volumeMounts:
-          - mountPath: /var/www/html
-            name: nextcloud-files
+          - name: ${nextcloud_name}-files
+            mountPath: /var/www/html
+          - name: config-mount
+            mountPath: /etc/nginx/nginx.conf
+            subPath: nginx.conf
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
         terminationGracePeriodSeconds: 30
         volumes:
-        - name: nextcloud-files
+        - name: ${nextcloud_name}-files
           persistentVolumeClaim:
-            claimName: nextcloud-files
+            claimName: ${nextcloud_name}-files
+        - name: config-mount
+          configMap:
+            name: nginx-config
+            defaultMode: 420
     test: false
     triggers:
     - imageChangeParams:
@@ -400,8 +478,8 @@ objects:
   kind: Service
   metadata:
     labels:
-      app: nextcloud
-    name: nextcloud
+      app: ${nextcloud_name}
+    name: ${nextcloud_name}
   spec:
     ports:
     - name: 8080-tcp
@@ -409,99 +487,74 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      app: nextcloud
-      deploymentconfig: nextcloud
+      app: ${nextcloud_name}
+      deploymentconfig: ${nextcloud_name}
     sessionAffinity: None
     type: ClusterIP
 - kind: Route
   apiVersion: v1
   metadata:
-    name: nextcloud
+    annotations:
+      haproxy.router.openshift.io/disable_cookies: 'true'
+      haproxy.router.openshift.io/ip_whitelist: ${ip_whitelist}
+    name: ${nextcloud_name}
     labels:
-      appcluster: nextcloud
+      appcluster: ${nextcloud_name}
   spec:
     host: ${NEXTCLOUD_HOST}
     port:
       targetPort: 8080-tcp
     to:
       kind: Service
-      name: nextcloud
+      name: ${nextcloud_name}
       weight: 100
     wildcardPolicy: None
     tls:
       termination: edge
       insecureEdgeTerminationPolicy: Redirect
-- apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: nextcloud-environment
-    labels:
-      appcluster: nextcloud
-  data:
-    CORDYN_Adapter_Endpoints_CLIE_MRGE: 'http://cordyn-dynamics-adapter-internal:8080/api/dynamics/clientmerge'
-    CORDYN_Cornet_Endpoints_CLIE_MRGE: 'https://wsgw.dev.jag.gov.bc.ca/CorDynQueueManager/clientMergeData'
 - apiVersion: batch/v1beta1
   kind: CronJob
   metadata:
-    name: nextcloud-cron
+    name: ${nextcloud_name}-cron
     labels:
-      appcluster: nextcloud
+      appcluster: ${CRON_NAME}
   spec:
+    schedule: ${SCHEDULE}
+    startingDeadlineSeconds: 200
     concurrencyPolicy: Replace
+    suspend: false
     jobTemplate:
+      metadata:
+        creationTimestamp: null
       spec:
-        activeDeadlineSeconds: 3600
         template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              name: ${nextcloud_name}-job
+              parent: ${nextcloud_name}-cronjob
           spec:
             containers:
-            - args:
-              - php
-              - -f
-              - /var/www/html/cron.php
-              env:
-              - name: NEXTCLOUD_UPDATE
-                value: "1"
-              - name: NC_dbhost
-                value: mariadb
-              - name: NC_dbuser
-                valueFrom:
-                  secretKeyRef:
-                    key: database-user
-                    name: mariadb
-              - name: NC_dbpassword
-                valueFrom:
-                  secretKeyRef:
-                    key: database-password
-                    name: mariadb
-              - name: NC_dbname
-                value: nextcloud
-              image: my-nextcloud:latest
-              namespace: ${tools_namespace}
-              imagePullPolicy: Always
-              name: nextcloud-cron
-              resources: {}
-              terminationMessagePath: /dev/termination-log
-              volumeMounts:
-              - mountPath: /var/www/html
-                name: nextcloud-source
-              - mountPath: /var/nc/data
-                name: nextcloud-data
-                subPath: data
-              - mountPath: /var/nc/config
-                name: nextcloud-data
-                subPath: config
-              - mountPath: /var/nc/custom_apps
-                name: nextcloud-data
-                subPath: apps
-            dnsPolicy: ClusterFirst
-            restartPolicy: Never
-            securityContext: {}
+              - name: ${nextcloud_name}-job-pod
+                image: >-
+                  image-registry.openshift-image-registry.svc:5000/openshift/httpd@sha256:b21e28894aab0a576079a8482a18a1d3ac73c63aad0647258651c9739a3e33f9
+                command:
+                  - /bin/sh
+                args:
+                  - '-c'
+                  - >-
+                    curl -XPOST
+                    '{CURL_URL}'
+                    --header 'Content-Type: application/json' --header
+                    'Transfer-encoding: chunked' -d ""
+                resources: {}
+                terminationMessagePath: /dev/termination-log
+                terminationMessagePolicy: File
+                imagePullPolicy: IfNotPresent
+            restartPolicy: OnFailure
             terminationGracePeriodSeconds: 30
-            volumes:
-            - name: nextcloud-source
-              emptyDir: {}
-            - name: nextcloud-data
-              persistentVolumeClaim:
-                claimName: nextcloud-data
-    schedule: '*/15 * * * *'
-    suspend: false
+            dnsPolicy: ClusterFirst
+            securityContext: {}
+            schedulerName: default-scheduler
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
