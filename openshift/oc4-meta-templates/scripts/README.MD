@@ -1,6 +1,7 @@
+# Docker Imagestream Deployer
+This script and template is meant to allow you to quickly import a local imagestream in OpenShift that is populated by any dockerimage and uses a dockerhub credential to avoid platform docker pull rate limit issues.
+
 ## Installation
-
-
 ### 1 Run Installer
 
 Pre Requisites:
